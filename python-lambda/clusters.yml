@@ -1,0 +1,16 @@
+clusters:
+  development:
+    autoscale_group: EC2ContainerService-development-EcsInstanceAsg-1F0M2UEJEY9OF
+    cpu_buffer: 256
+    mem_buffer: 256
+    enabled: true
+  staging:
+    autoscale_group: EC2ContainerService-staging-EcsInstanceAsg-FKQIRK1S4ZDU
+    cpu_buffer: 512
+    mem_buffer: 512
+    enabled: true
+  production:
+    autoscale_group: EC2ContainerService-production-EcsInstanceAsg-1M41VS657IN2A
+    cpu_buffer: 512
+    mem_buffer: 512
+    enabled: true
