@@ -182,12 +182,18 @@ def scale_up(cluster_data, cluster_def, asg_group_data):
         return False
     should_scale = True
     for instance in cluster_data["activeContainerDescribed"]:
+        # TODO
+        # if cpu_avail >= cpu_buffer and mem_avil >= mem_buffer:
+        #     should_scale = False
+        #     break
         pass
-    # desired_capacity = asg_group_data["DesiredCapacity"] + 1
-    # asg_client.set_desired_capacity(
-    #     AutoScalingGroupName=cluster_def["autoscale_group"],
-    #     DesiredCapacity=desired_capacity,
-    # )
+    if should_scale:
+        desired_capacity = asg_group_data["DesiredCapacity"] + 1
+        asg_client.set_desired_capacity(
+            AutoScalingGroupName=cluster_def["autoscale_group"],
+            DesiredCapacity=desired_capacity,
+        )
+        return True
     return False
 
 
