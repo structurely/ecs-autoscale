@@ -382,13 +382,6 @@ def scale_cluster(cluster_data, cluster_def, asg_group_data):
     """
     Scale a cluster up or down if requirements are met, otherwise do nothing.
     """
-    if not cluster_def["enabled"]:
-        logger.warning(
-            "[Cluster: {}] Skipping since not enabled"\
-            .format(cluster_data["clusterName"])
-        )
-        return False
-
     # Check if we should scale up.
     scaled = scale_up(
         cluster_data,
@@ -410,13 +403,23 @@ def lambda_handler(event, context):
     logger.info("Got event {}".format(event))
     for cluster_name in cluster_defs["clusters"]:
         cluster_def = cluster_defs["clusters"][cluster_name]
+        if not cluster_def["enabled"]:
+            logger.warning(
+                "[Cluster: {}] Skipping since not enabled"\
+                .format(cluster_name)
+            )
+            continue
+
+        # Gather data needed.
         asg_group_name = cluster_def["autoscale_group"]
+        asg_group_data = get_asg_group_data(asg_group_name, asg_data)
         cluster_arn = get_cluster_arn(cluster_name, cluster_list)
         cluster_data = retrieve_cluster_data(
             cluster_arn,
             cluster_name,
         )
-        asg_group_data = get_asg_group_data(asg_group_name, asg_data)
+
+        # Attempt scaling.
         scale_cluster(
             cluster_data,
             cluster_def,
