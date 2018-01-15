@@ -264,6 +264,7 @@ def scale_up(cluster_data, cluster_def, asg_group_data):
                .format(cluster_data["clusterName"])
            )
            return False
+
     desired_capacity = asg_group_data["DesiredCapacity"] + 1
     logger.info(
         "[Cluster: {}] Scaling cluster up to {} instances"\
@@ -331,7 +332,11 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
             .format(cluster_data["clusterName"])
         )
         return False
+
     instances = cluster_data["activeContainerDescribed"]["containerInstances"]
+
+    # First see if we can move all of the tasks from the instance with the smallest 
+    # amount of reserved memory to another instance.
     min_mem_instance = get_min_mem_instance(instances)
     if place_instance(min_mem_instance, instances, cluster_def):
         # Scale down this instance.
@@ -352,6 +357,8 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
         )
         return True
 
+    # Otherwise see if we can move all of the tasks from the instance with the smallest 
+    # amount of reserved CPU units to another instance.
     min_cpu_instance = get_min_cpu_instance(instances)
     if place_instance(min_cpu_instance, instances, cluster_def):
         # Scale down this instance.
@@ -371,6 +378,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
             min_cpu_instance["ec2InstanceId"],
         )
         return True
+
     logger.info(
         "[Cluster: {}] Scale down conditions not met, doing nothing"\
         .format(cluster_data["clusterName"])
@@ -400,6 +408,9 @@ def scale_cluster(cluster_data, cluster_def, asg_group_data):
 
 
 def lambda_handler(event, context):
+    """
+    Main function which is invoked by AWS Lambda.
+    """
     logger.info("Got event {}".format(event))
     for cluster_name in cluster_defs["clusters"]:
         cluster_def = cluster_defs["clusters"][cluster_name]
