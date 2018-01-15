@@ -21,6 +21,7 @@ import yaml
 import boto3
 
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -137,7 +138,6 @@ def draining_instances(clusterArn, drainingContainerDescribed):
 
 
 def retrieve_cluster_data(cluster_arn, cluster_name):
-    logger.info("Retreiving data for {} cluster".format(cluster_name))
     activeContainerInstances = ecs_client.list_container_instances(
         cluster=cluster_arn,
         status='ACTIVE'
@@ -390,6 +390,40 @@ def scale_cluster(cluster_data, cluster_def, asg_group_data):
     """
     Scale a cluster up or down if requirements are met, otherwise do nothing.
     """
+    logger.info(
+        "[Cluster: {}] Current state:\n"\
+        " => Minimum capacity: {}\n"\
+        " => Maximum capacity: {}\n"\
+        " => Desired capacity: {}\n"\
+        " => CPU buffer:       {}\n"\
+        " => Memory buffer:    {} MB"
+        .format(
+            cluster_data["clusterName"],
+            asg_group_data["MinSize"],
+            asg_group_data["MaxSize"],
+            asg_group_data["DesiredCapacity"],
+            cluster_def["cpu_buffer"],
+            cluster_def["mem_buffer"],
+        )
+    )
+    instances = cluster_data["activeContainerDescribed"]["containerInstances"]
+    for instance in instances:
+        logger.info(
+            "[Cluster: {}] Instance {}:\n"\
+            " => Reserved CPU units:  {}\n"\
+            " => Available CPU units: {}\n"\
+            " => Reserved memory:     {} MB\n"\
+            " => Available memory:    {} MB"\
+            .format(
+                cluster_data["clusterName"],
+                instance["ec2InstanceId"],
+                get_cpu_used(instance),
+                get_cpu_avail(instance),
+                get_mem_used(instance),
+                get_mem_avail(instance),
+            )
+        )
+
     # Check if we should scale up.
     scaled = scale_up(
         cluster_data,
