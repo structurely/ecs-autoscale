@@ -301,22 +301,12 @@ def place_instance(instance, instances, cluster_def):
         return False
 
     # Check if we can fit the memory and cpu reserved by this instance onto one
-    # of the other instances.
-    cpu_used = get_cpu_used(instance)
-    mem_used = get_mem_used(instance)
+    # of the other instances with enough room left over for the CPU and mem buffers.
+    cpu_needed = get_cpu_used(instance) + cluster_def["cpu_buffer"]
+    mem_needed = get_mem_used(instance) + cluster_def["mem_buffer"]
     other_instances, allocated = allocate_instances(
-        cpu_used,
-        mem_used,
-        other_instances,
-    )
-    logger.debug(other_instances)
-    if not allocated:
-        return False
-
-    # Check if we would still have room for the cpu and mem buffers.
-    other_instances, allocated = allocate_instances(
-        cluster_def["cpu_buffer"],
-        cluster_def["mem_buffer"],
+        cpu_needed,
+        mem_needed,
         other_instances,
     )
     logger.debug(other_instances)
