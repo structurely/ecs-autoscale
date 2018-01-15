@@ -12,12 +12,17 @@ import datetime
 import inspect
 import logging
 import os
-import yaml
+import sys
 
+base_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+sys.path.append(os.path.join(base_path, "./packages/"))
+
+import yaml
 import boto3
 
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 # Initialize boto3 clients.
@@ -35,7 +40,7 @@ def clusters():
     """
     response = ecs_client.list_clusters()
     if not response['clusterArns']:
-        logging.warning('No ECS cluster found')
+        logger.warning('No ECS cluster found')
         return []
     return response["clusterArns"]
 
@@ -45,7 +50,7 @@ cluster_list = clusters()
 
 # Load cluster autoscaling definitions.
 clusters_defs_path = os.path.join(
-    os.path.dirname(os.path.abspath(inspect.stack()[0][1])),
+    base_path,
     "./clusters.yml"
 )
 cluster_defs = yaml.load(open(clusters_defs_path, "r"))
@@ -57,7 +62,7 @@ def get_cluster_arn(cluster_name, cluster_list):
         if name == cluster_name:
             return arn
     else:
-        logging.error(
+        logger.error(
             "Could not find cluster arn for cluster {}".format(cluster_name)
         )
 
@@ -67,7 +72,7 @@ def get_asg_group_data(asg_group_name, asg_data):
         if item["AutoScalingGroupName"] == asg_group_name:
             return item
     else:
-        logging.error(
+        logger.error(
             "Could not find autoscaling group with name {}".format(asg_group_name)
         )
 
@@ -94,7 +99,7 @@ def cluster_memory_reservation(cluster_name):
         return response['Datapoints'][0]['Average']
 
     except Exception:
-        logging.error(
+        logger.error(
             "ClusterMemoryError: Could not retrieve mem reservation for {}"\
             .format(cluster_name)
         )
@@ -132,7 +137,7 @@ def draining_instances(clusterArn, drainingContainerDescribed):
 
 
 def retrieve_cluster_data(cluster_arn, cluster_name):
-    logging.info("Retreiving data for {} cluster".format(cluster_name))
+    logger.info("Retreiving data for {} cluster".format(cluster_name))
     activeContainerInstances = ecs_client.list_container_instances(
         cluster=cluster_arn,
         status='ACTIVE'
@@ -145,7 +150,7 @@ def retrieve_cluster_data(cluster_arn, cluster_name):
             containerInstances=activeContainerInstances['containerInstanceArns']
         )
     else:
-        logging.warning("No active instances in cluster")
+        logger.warning("No active instances in cluster")
         return None
 
     drainingContainerInstances = ecs_client.list_container_instances(
@@ -214,7 +219,7 @@ def get_cpu_used(instance):
             cpu_registered = item["integerValue"]
             break
     else:
-        logging.error("No value for registered CPU found")
+        logger.error("No value for registered CPU found")
         return None
     return cpu_registered - get_cpu_avail(instance)
 
@@ -225,7 +230,7 @@ def get_mem_used(instance):
             mem_registered = item["integerValue"]
             break
     else:
-        logging.error("No value for registered MEMORY found")
+        logger.error("No value for registered MEMORY found")
         return None
     return mem_registered - get_mem_avail(instance)
 
@@ -237,12 +242,12 @@ def scale_up(cluster_data, cluster_def, asg_group_data):
     We scale out when there is less than `cpu_buffer` or less than `mem_buffer`
     on all instances and when `desired_capacity` < `max_capacity`.
     """
-    logging.info(
+    logger.info(
         "[Cluster: {}] Checking if we should scale up"\
         .format(cluster_data["clusterName"])
     )
     if asg_group_data["DesiredCapacity"] >= asg_group_data["MaxSize"]:
-        logging.info(
+        logger.info(
             "[Cluster: {}] Max capacity already reached, cannot scale up"\
             .format(cluster_data["clusterName"])
         )
@@ -254,13 +259,13 @@ def scale_up(cluster_data, cluster_def, asg_group_data):
         cpu_avail = get_cpu_avail(instance)
         mem_avail = get_mem_avail(instance)
         if cpu_avail >= cpu_buffer and mem_avail >= mem_buffer:
-           logging.info(
+           logger.info(
                "[Cluster: {}] Cluster is sufficiently sized, not scaling up"\
                .format(cluster_data["clusterName"])
            )
            return False
     desired_capacity = asg_group_data["DesiredCapacity"] + 1
-    logging.info(
+    logger.info(
         "[Cluster: {}] Scaling cluster up to {} instances"\
         .format(cluster_data["clusterName"], desired_capacity)
     )
@@ -291,7 +296,7 @@ def allocate_instances(desired_cpu, desired_mem, instance_tuples):
 def place_instance(instance, instances, cluster_def):
     other_instances = [(get_cpu_avail(x), get_mem_avail(x)) for x in instances
                        if x["ec2InstanceId"] != instance["ec2InstanceId"]]
-    logging.debug(other_instances)
+    logger.debug(other_instances)
     if not other_instances:
         return False
 
@@ -304,7 +309,7 @@ def place_instance(instance, instances, cluster_def):
         mem_used,
         other_instances,
     )
-    logging.debug(other_instances)
+    logger.debug(other_instances)
     if not allocated:
         return False
 
@@ -314,7 +319,7 @@ def place_instance(instance, instances, cluster_def):
         cluster_def["mem_buffer"],
         other_instances,
     )
-    logging.debug(other_instances)
+    logger.debug(other_instances)
     return allocated
 
 
@@ -326,12 +331,12 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
     instance with either the smallest amount of reserved mem or reserved CPU
     can fit on another instance and when `desired_capacity` > `min_capacity`.
     """
-    logging.info(
+    logger.info(
         "[Cluster: {}] Checking if we can scale down"\
         .format(cluster_data["clusterName"])
     )
     if asg_group_data["DesiredCapacity"] <= asg_group_data["MinSize"]:
-        logging.info(
+        logger.info(
             "[Cluster: {}] Min capacity already reached, cannot scale down"\
             .format(cluster_data["clusterName"])
         )
@@ -340,7 +345,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
     min_mem_instance = get_min_mem_instance(instances)
     if place_instance(min_mem_instance, instances, cluster_def):
         # Scale down this instance.
-        logging.info(
+        logger.info(
             "[Cluster: {}] Draining instance {}"\
             .format(cluster_data["clusterName"], min_mem_instance["ec2InstanceId"])
         )
@@ -348,7 +353,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
             min_mem_instance["containerInstanceArn"].split("/")[1],
             cluster_data["clusterName"],
         )
-        logging.info(
+        logger.info(
             "[Cluster: {}] Terminating instance {}"\
             .format(cluster_data["clusterName"], min_mem_instance["ec2InstanceId"])
         )
@@ -360,7 +365,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
     min_cpu_instance = get_min_cpu_instance(instances)
     if place_instance(min_cpu_instance, instances, cluster_def):
         # Scale down this instance.
-        logging.info(
+        logger.info(
             "[Cluster: {}] Draining instance {}"\
             .format(cluster_data["clusterName"], min_cpu_instance["ec2InstanceId"])
         )
@@ -368,7 +373,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
             min_cpu_instance["containerInstanceArn"].split("/")[1],
             cluster_data["clusterName"],
         )
-        logging.info(
+        logger.info(
             "[Cluster: {}] Terminating instance {}"\
             .format(cluster_data["clusterName"], min_cpu_instance["ec2InstanceId"])
         )
@@ -376,7 +381,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
             min_cpu_instance["ec2InstanceId"],
         )
         return True
-    logging.info(
+    logger.info(
         "[Cluster: {}] Scale down conditions not met, doing nothing"\
         .format(cluster_data["clusterName"])
     )
@@ -388,7 +393,7 @@ def scale_cluster(cluster_data, cluster_def, asg_group_data):
     Scale a cluster up or down if requirements are met, otherwise do nothing.
     """
     if not cluster_def["enabled"]:
-        logging.warning(
+        logger.warning(
             "[Cluster: {}] Skipping since not enabled"\
             .format(cluster_data["clusterName"])
         )
@@ -412,6 +417,7 @@ def scale_cluster(cluster_data, cluster_def, asg_group_data):
 
 
 def lambda_handler(event, context):
+    logger.info("Got event {}".format(event))
     for cluster_name in cluster_defs["clusters"]:
         cluster_def = cluster_defs["clusters"][cluster_name]
         asg_group_name = cluster_def["autoscale_group"]
