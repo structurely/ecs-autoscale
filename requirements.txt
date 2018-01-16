@@ -1,0 +1,5 @@
+awscli
+boto3
+PyYAML
+virtualenv
+virtualenvwrapper

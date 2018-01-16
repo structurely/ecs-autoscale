@@ -1,12 +1,10 @@
-site-packages=`python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"`
-
 .PHONY: setup
 setup:
-	workon ecs-autoscale
-	cd python-lambda && \
+	which python3 | mkvirtualenv ecs-autoscale -p
+	workon ecs-autoscale && \
+			cd python-lambda && \
 			pip install -r requirements.txt && \
-			ln -s $(site-packages) packages
-
+			ln -s `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` packages
 
 .PHONY: build
 build:

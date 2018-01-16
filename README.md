@@ -2,10 +2,32 @@
 
 Lambda function for autoscaling ECS clusters.
 
-In order to deploy, first create a Python 3 virtualenv called `ecs-autoscale` and then run
-`make setup`. This will install the requirements to that virtualenv and create a symbolic link
-`python-lambda/packages` to the site-packages directory.
-Then you can deploy the with `make ecs-deploy`.
+## Developing and deploying
+
+For developing and deploying, make sure you have Python 3.5 or 3.6 and have installed the requirements
+listed in `requirements.txt` (`pip3 install -r requirements.txt`). To test the function locally,
+
+```bash
+cd ./python-lambda/ && python3 lambda_function.py
+```
+
+In order to deploy, first run
+
+```
+make setup
+```
+
+This will
+
+- Create a Python 3 virtualenv called `ecs-autoscale`.
+- Install the requirements to that virtualenv.
+- Create a symbolic link `python-lambda/packages` to the site-packages directory of that virtualenv.
+
+Then you can deploy the with 
+
+```
+make ecs-deploy
+```
 
 ## Details
 
