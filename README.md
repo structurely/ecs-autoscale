@@ -26,7 +26,7 @@ This will
 Then you can deploy the with 
 
 ```
-make ecs-deploy
+make deploy
 ```
 
 ## Details
