@@ -50,3 +50,8 @@ A cluster is triggered to scale down by one when the following two conditions ar
 
 - the desired capacity of the corresponding autoscaling group is greater than the minimum capacity, and
 - all of the tasks on the EC2 instance in the cluster with either the smallest amount of reserved CPU units or memory could fit on another instance in the cluster with enough room left over for `cpu_buffer` CPU units and `mem_buffer` MB.
+
+## TODO
+
+- [ ] Get autoscaling group name automatically for a given cluster name.
+  - Could do this by cross-referencing the EC2 instance ids in the autoscaling group with that in the cluster
