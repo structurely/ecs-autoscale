@@ -447,29 +447,32 @@ def lambda_handler(event, context):
     """
     logger.info("Got event {}".format(event))
     for cluster_name in cluster_defs["clusters"]:
-        cluster_def = cluster_defs["clusters"][cluster_name]
-        if not cluster_def["enabled"]:
-            logger.warning(
-                "[Cluster: {}] Skipping since not enabled"\
-                .format(cluster_name)
+        try:
+            cluster_def = cluster_defs["clusters"][cluster_name]
+            if not cluster_def["enabled"]:
+                logger.warning(
+                    "[Cluster: {}] Skipping since not enabled"\
+                    .format(cluster_name)
+                )
+                continue
+
+            # Gather data needed.
+            asg_group_name = cluster_def["autoscale_group"]
+            asg_group_data = get_asg_group_data(asg_group_name, asg_data)
+            cluster_arn = get_cluster_arn(cluster_name, cluster_list)
+            cluster_data = retrieve_cluster_data(
+                cluster_arn,
+                cluster_name,
             )
-            continue
 
-        # Gather data needed.
-        asg_group_name = cluster_def["autoscale_group"]
-        asg_group_data = get_asg_group_data(asg_group_name, asg_data)
-        cluster_arn = get_cluster_arn(cluster_name, cluster_list)
-        cluster_data = retrieve_cluster_data(
-            cluster_arn,
-            cluster_name,
-        )
-
-        # Attempt scaling.
-        scale_cluster(
-            cluster_data,
-            cluster_def,
-            asg_group_data,
-        )
+            # Attempt scaling.
+            scale_cluster(
+                cluster_data,
+                cluster_def,
+                asg_group_data,
+            )
+        except Exception as ex:
+            logger.log(ex)
 
 
 if __name__ == "__main__":
