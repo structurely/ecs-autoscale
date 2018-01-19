@@ -105,11 +105,14 @@ class Service(object):
 
 
 def get_services(cluster_name, cluster_def):
+    out = {}
+    service_names = cluster_def["services"].keys()
+    if not service_names:
+        return out
     res = ecs_client.describe_services(
         cluster=cluster_name,
         services=list(cluster_def["services"].keys())
     )
-    out = {}
     for item in res["services"]:
         name = item["serviceName"]
         out[name] = {
@@ -131,6 +134,12 @@ def gather_services(cluster_name, cluster_def):
             "[Cluster: {}] Found service {}"\
             .format(cluster_name, service_name)
         )
+        if not cluster_def["services"][service_name]["enabled"]:
+            logger.info(
+                "[Cluster: {}] Skipping service {} since not enabled"\
+                .format(cluster_name, service_name)
+            )
+            continue
         task_name = services_data[service_name]["task_name"]
         task_count = services_data[service_name]["task_count"]
         service = Service(cluster_name, service_name, task_name, task_count,
