@@ -32,46 +32,31 @@ make deploy
 ## Details
 
 The file `./python-lambda/clusters.yml` determines which ECS clusters will be monitored.
-That file will look something like this:
+This file is well documented with comments but if you have outstanding questions let me know.
 
-```yaml
-clusters:
-  # Cluster name.
-  development:
-    # Autoscaling group name.
-    autoscale_group: EC2ContainerService-development-EcsInstanceAsg-1F0M2UEJEY9OF
-    cpu_buffer: 256  # Minimum amount of free CPU required for this cluster.
-    mem_buffer: 256  # Minimum amount of free memory required for this cluster.
-    enabled: false   # Easy toggle monitoring.
-    # NOTE: `cpu_buffer` and `mem_buffer` should be set to at least the maximum
-    # reserved CPU and maximum reserved memory, respectively, out of all tasks
-    # running on the cluster, so that any service will be able scale up when
-    # `cpu_buffer` CPU units and `mem_buffer` MB are available.
-  staging:
-    autoscale_group: EC2ContainerService-staging-EcsInstanceAsg-FKQIRK1S4ZDU
-    cpu_buffer: 512
-    mem_buffer: 512
-    enabled: true
-  production:
-    autoscale_group: EC2ContainerService-production-EcsInstanceAsg-1M41VS657IN2A
-    cpu_buffer: 512
-    mem_buffer: 512
-    enabled: true
-```
+> NOTE: We are using a similar syntax for expanding environment variables as used in `supervisor.conf` files, i.e.
+something like `%(RABBITMQ_DEV)` will be expanding into the environment variable `RABBITMQ_DEV`.
 
-### Scaling up
+
+### Scaling up the cluster
 
 A cluster is triggered to scale up by one when the following two conditions are met:
 
 - the desired capacity of the corresponding autoscaling group is less than the maximum capacity, and
 - there is no EC2 instance in the autoscaling group with at least `cpu_buffer` CPU units and `mem_buffer` MB free.
 
-### Scaling down
+### Scaling down the cluster
 
 A cluster is triggered to scale down by one when the following two conditions are met:
 
 - the desired capacity of the corresponding autoscaling group is greater than the minimum capacity, and
 - all of the tasks on the EC2 instance in the cluster with either the smallest amount of reserved CPU units or memory could fit on another instance in the cluster with enough room left over for `cpu_buffer` CPU units and `mem_buffer` MB.
+
+### Scaling individual services
+
+Individual services can be scaled up or down according to arbitrary metrics. For example,
+celery workers can be scaled according to the number of queued messages.
+
 
 ## TODO
 

@@ -103,3 +103,6 @@ ENV/
 # deployment stuff
 *.zip
 python-lambda/packages
+
+# testing
+test.sh
