@@ -472,7 +472,7 @@ def lambda_handler(event, context):
                 asg_group_data,
             )
         except Exception as ex:
-            logger.log(ex)
+            logger.exception(ex)
 
 
 if __name__ == "__main__":
