@@ -221,7 +221,7 @@ def scale_up(cluster_data, cluster_def, asg_group_data):
         .format(cluster_data["clusterName"])
     )
     if asg_group_data["DesiredCapacity"] >= asg_group_data["MaxSize"]:
-        logger.info(
+        logger.warning(
             "[Cluster: {}] Max capacity already reached, cannot scale up"\
             .format(cluster_data["clusterName"])
         )
@@ -301,7 +301,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
         .format(cluster_data["clusterName"])
     )
     if asg_group_data["DesiredCapacity"] <= asg_group_data["MinSize"]:
-        logger.info(
+        logger.warning(
             "[Cluster: {}] Min capacity already reached, cannot scale down"\
             .format(cluster_data["clusterName"])
         )
