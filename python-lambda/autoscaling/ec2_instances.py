@@ -425,9 +425,20 @@ def scale_ec2_instances(cluster_name, cluster_def):
         cluster_name,
     )
 
+    if not cluster_data:
+        logger.warning(
+            "[Cluster: {}] No cluster data... skipping"\
+            .format(
+                cluster_name,
+            )
+        )
+        return -1
+
     # Attempt scaling.
-    _scale_ec2_instances(
+    res = _scale_ec2_instances(
         cluster_data,
         cluster_def,
         asg_group_data,
     )
+    res = 1 if res else 0
+    return res

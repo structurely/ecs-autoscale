@@ -73,7 +73,10 @@ def lambda_handler(event, context):
                 cluster_def["mem_buffer"] = max([cluster_def["mem_buffer"], 0])
 
             # (3 / 4) Scale EC2 instances.
-            scale_ec2_instances(cluster_name, cluster_def)
+            res = scale_ec2_instances(cluster_name, cluster_def)
+            if res == -1:
+                # No instances in the cluster or something else went wrong.
+                continue
 
             # (4 / 4) Scale services.
             for service in services:
