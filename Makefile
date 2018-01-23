@@ -8,6 +8,7 @@ setup:
 
 .PHONY: build
 build:
+	find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
 	@cd python-lambda && \
 			zip -r ../deployment.zip *
 
