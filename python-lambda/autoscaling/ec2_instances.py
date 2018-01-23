@@ -24,10 +24,6 @@ def clusters():
     return response["clusterArns"]
 
 
-# Get cluster arn list.
-cluster_list = clusters()
-
-
 def get_cluster_arn(cluster_name, cluster_list):
     for arn in cluster_list:
         name = arn.split("/")[1]
@@ -425,6 +421,7 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
 
 def scale_ec2_instances(cluster_name, cluster_def, asg_data):
     # Gather data needed.
+    cluster_list = clusters()
     asg_group_name = cluster_def["autoscale_group"]
     asg_group_data = get_asg_group_data(asg_group_name, asg_data)
     cluster_arn = get_cluster_arn(cluster_name, cluster_list)
