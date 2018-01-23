@@ -329,6 +329,10 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
         terminate_instance(
             min_mem_instance["ec2InstanceId"],
         )
+        asg_client.set_desired_capacity(
+            AutoScalingGroupName=cluster_def["autoscale_group"],
+            DesiredCapacity=asg_group_data["DesiredCapacity"] - 1,
+        )
         return True
 
     # Otherwise see if we can move all of the tasks from the instance with the smallest 
@@ -351,6 +355,10 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
         terminate_instance(
             min_cpu_instance["ec2InstanceId"],
         )
+        asg_client.set_desired_capacity(
+            AutoScalingGroupName=cluster_def["autoscale_group"],
+            DesiredCapacity=asg_group_data["DesiredCapacity"] - 1,
+        )
         return True
 
     logger.info(
@@ -363,6 +371,9 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
 def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
     """
     Scale a cluster up or down if requirements are met, otherwise do nothing.
+
+    Returns 1 if scaling event occured, 0 if it did not, and -1 if no cluster
+    data could be retrieved.
     """
     logger.info(
         "[Cluster: {}] Current state:\n"\

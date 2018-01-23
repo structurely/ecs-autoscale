@@ -121,7 +121,7 @@ clusters:
     autoscale_group: EC2ContainerService-production-EcsInstanceAsg-1M41VS657IN2A
     cpu_buffer: 512
     mem_buffer: 512
-    enabled: true
+    enabled: false
     services:
       aisa-production:
         type: celery
