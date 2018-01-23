@@ -13,17 +13,6 @@ logger.setLevel(logging.INFO)
 from . import ecs_client, cw_client, asg_client
 
 
-def clusters():
-    """
-    Returns an iterable list of cluster names.
-    """
-    response = ecs_client.list_clusters()
-    if not response['clusterArns']:
-        logger.warning('No ECS cluster found')
-        return []
-    return response["clusterArns"]
-
-
 def get_cluster_arn(cluster_name, cluster_list):
     for arn in cluster_list:
         name = arn.split("/")[1]
@@ -419,9 +408,8 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
     return scaled
 
 
-def scale_ec2_instances(cluster_name, cluster_def, asg_data):
+def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list):
     # Gather data needed.
-    cluster_list = clusters()
     asg_group_name = cluster_def["autoscale_group"]
     asg_group_data = get_asg_group_data(asg_group_name, asg_data)
     cluster_arn = get_cluster_arn(cluster_name, cluster_list)

@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-from autoscaling import asg_client
+from autoscaling import asg_client, ecs_client
 from autoscaling.ec2_instances import scale_ec2_instances
 from autoscaling.services import gather_services
 
@@ -40,7 +40,18 @@ with open(clusters_defs_path, "r") as f:
 for match, env_var in re.findall(r"(%\(([A-Za-z_]+)\))", raw):
     raw = raw.replace(match, os.environ[env_var])
 
-base_cluster_defs = yaml.load(raw)
+base_cluster_defs = yaml.load(raw) 
+
+
+def clusters():
+    """
+    Returns an iterable list of cluster names.
+    """
+    response = ecs_client.list_clusters()
+    if not response['clusterArns']:
+        logger.warning('No ECS cluster found')
+        return []
+    return response["clusterArns"]
 
 
 def lambda_handler(event, context):
@@ -51,6 +62,7 @@ def lambda_handler(event, context):
 
     # Initialize data.
     cluster_defs = deepcopy(base_cluster_defs)
+    cluster_list = clusters()
     asg_data = asg_client.describe_auto_scaling_groups()
 
     for cluster_name in cluster_defs["clusters"]:
@@ -63,16 +75,16 @@ def lambda_handler(event, context):
                 )
                 continue
 
-            # (1 / 4) Collect individual services in the cluster that will need to
-            # be scaled.
+            # (1 / 4) Collect individual services in the cluster that will need 
+            # to be scaled.
             services = gather_services(cluster_name, cluster_def)
             logger.info(
                 "[Cluster: {}] Found {:d} services that need to scale"\
                 .format(cluster_name, len(services))
             )
 
-            # (2 / 4) Increase the CPU and memory buffers according to the services
-            # that need to scale.
+            # (2 / 4) Increase the CPU and memory buffers according to the 
+            # services that need to scale.
             for service in services:
                 cluster_def["cpu_buffer"] += service.cpu_increase
                 cluster_def["cpu_buffer"] = max([cluster_def["cpu_buffer"], 0])
@@ -80,7 +92,9 @@ def lambda_handler(event, context):
                 cluster_def["mem_buffer"] = max([cluster_def["mem_buffer"], 0])
 
             # (3 / 4) Scale EC2 instances.
-            res = scale_ec2_instances(cluster_name, cluster_def, asg_data)
+            res = scale_ec2_instances(
+                cluster_name, cluster_def, asg_data, cluster_list
+            )
             if res == -1:
                 # No instances in the cluster or something else went wrong.
                 continue
