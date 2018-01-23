@@ -395,9 +395,6 @@ def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list):
         cluster_name,
     )
 
-    if not cluster_data:
-        return -1
-
     # Attempt scaling.
     res = _scale_ec2_instances(
         cluster_data,

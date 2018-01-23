@@ -56,9 +56,3 @@ A cluster is triggered to scale down by one when the following two conditions ar
 
 Individual services can be scaled up or down according to arbitrary metrics. For example,
 celery workers can be scaled according to the number of queued messages.
-
-
-## TODO
-
-- [ ] Get autoscaling group name automatically for a given cluster name.
-  - Could do this by cross-referencing the EC2 instance ids in the autoscaling group with that in the cluster
