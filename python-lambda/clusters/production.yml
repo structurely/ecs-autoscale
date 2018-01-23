@@ -7,7 +7,7 @@ services:
     type: celery
     data:
       url: %(RABBITMQ_PRD)/celery
-    min: 1
+    min: 2
     max: 4
     enabled: true
     events:
@@ -39,7 +39,7 @@ services:
     type: celery
     data:
       url: %(RABBITMQ_PRD)/holmes-brain
-    min: 1
+    min: 2
     max: 4
     enabled: true
     events:
