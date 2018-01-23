@@ -30,17 +30,21 @@ from autoscaling.services import gather_services
 # Load cluster autoscaling definitions.
 clusters_defs_path = os.path.join(
     base_path,
-    "./clusters.yml"
+    "clusters/"
 )
 
-with open(clusters_defs_path, "r") as f:
-    raw = f.read()
-
-# Replace env variables in the yaml defs.
-for match, env_var in re.findall(r"(%\(([A-Za-z_]+)\))", raw):
-    raw = raw.replace(match, os.environ[env_var])
-
-base_cluster_defs = yaml.load(raw) 
+base_cluster_defs = {}
+for fname in os.listdir(clusters_defs_path):
+    if not fname.endswith(".yml"):
+        continue
+    path = os.path.join(clusters_defs_path, fname)
+    cluster_name = os.path.splitext(fname)[0]
+    with open(path, "r") as f:
+        raw = f.read()
+        # Replace env variables in the yaml defs.
+        for match, env_var in re.findall(r"(%\(([A-Za-z_]+)\))", raw):
+            raw = raw.replace(match, os.environ[env_var])
+    base_cluster_defs[cluster_name] = yaml.load(raw)
 
 
 def clusters():
@@ -65,9 +69,9 @@ def lambda_handler(event, context):
     cluster_list = clusters()
     asg_data = asg_client.describe_auto_scaling_groups()
 
-    for cluster_name in cluster_defs["clusters"]:
+    for cluster_name in cluster_defs:
         try:
-            cluster_def = cluster_defs["clusters"][cluster_name]
+            cluster_def = cluster_defs[cluster_name]
             if not cluster_def["enabled"]:
                 logger.warning(
                     "[Cluster: {}] Skipping since not enabled"\

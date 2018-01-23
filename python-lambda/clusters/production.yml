@@ -1,0 +1,53 @@
+autoscale_group: EC2ContainerService-production-EcsInstanceAsg-1M41VS657IN2A
+cpu_buffer: 512
+mem_buffer: 512
+enabled: false
+services:
+  aisa-production:
+    type: celery
+    data:
+      url: %(RABBITMQ_PRD)/celery
+    min: 1
+    max: 4
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
+  analytics-worker:
+    type: celery
+    data:
+      url: %(RABBITMQ_PRD)/analytics
+    min: 1
+    max: 4
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
+  holmes-brain-worker-production:
+    type: celery
+    data:
+      url: %(RABBITMQ_PRD)/holmes-brain
+    min: 1
+    max: 4
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.

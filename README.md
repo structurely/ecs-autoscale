@@ -31,8 +31,8 @@ make deploy
 
 ## Details
 
-The file `./python-lambda/clusters.yml` determines which ECS clusters will be monitored.
-This file is well documented with comments but if you have outstanding questions let me know.
+The YAML files in `./python-lambda/clusters/` define which ECS clusters will be monitored.
+These files are well documented with comments but if you have outstanding questions let me know.
 
 > NOTE: We are using a similar syntax for expanding environment variables as used in `supervisor.conf` files, i.e.
 something like `%(RABBITMQ_DEV)` will be expanding into the environment variable `RABBITMQ_DEV`.

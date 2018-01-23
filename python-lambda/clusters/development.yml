@@ -1,0 +1,53 @@
+autoscale_group: EC2ContainerService-development-EcsInstanceAsg-1F0M2UEJEY9OF
+cpu_buffer: 200
+mem_buffer: 200
+enabled: true
+services:
+  aisa-development:
+    type: celery
+    data:
+      url: %(RABBITMQ_DEV)/celery
+    min: 1
+    max: 3
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
+  analytics-worker:
+    type: celery
+    data:
+      url: %(RABBITMQ_DEV)/analytics
+    min: 1
+    max: 3
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
+  holmes-brain-worker-development:
+    type: celery
+    data:
+      url: %(RABBITMQ_DEV)/holmes-brain
+    min: 1
+    max: 3
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
