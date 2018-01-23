@@ -78,9 +78,10 @@ def lambda_handler(event, context):
             # (1 / 4) Collect individual services in the cluster that will need 
             # to be scaled.
             services = gather_services(cluster_name, cluster_def)
+            n_services = len(services)
             logger.info(
                 "[Cluster: {}] Found {:d} services that need to scale"\
-                .format(cluster_name, len(services))
+                .format(cluster_name, n_services)
             )
 
             # (2 / 4) Increase the CPU and memory buffers according to the 
@@ -96,12 +97,18 @@ def lambda_handler(event, context):
                 cluster_name, cluster_def, asg_data, cluster_list
             )
             if res == -1:
+                if n_services > 0:
+                    logger.warning(
+                        "[Cluster: {}] Cannot scale services since max capacity is 0"\
+                        .format(cluster_name)
+                    )
                 # No instances in the cluster or something else went wrong.
                 continue
 
             # (4 / 4) Scale services.
             for service in services:
                 service.scale()
+
         except Exception as ex:
             logger.exception(ex)
 
