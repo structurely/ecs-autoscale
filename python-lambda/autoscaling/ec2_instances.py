@@ -327,8 +327,8 @@ def log_instances(cluster_name, instances, status="active"):
             " => Available memory:    {} MB"\
             .format(
                 cluster_name,
-                status,
                 instance["ec2InstanceId"],
+                status,
                 get_cpu_used(instance),
                 get_cpu_avail(instance),
                 get_mem_used(instance),
