@@ -103,6 +103,7 @@ ENV/
 # deployment stuff
 *.zip
 python-lambda/packages
+python-lambda/clusters/*.yml
 
 # testing
 test.sh
