@@ -132,26 +132,29 @@ def terminate_instance(ec2_instance_id):
     )
 
 
-def remove_instance(cluster_data, cluster_def, asg_group_data, instance):
+def remove_instance(cluster_data, cluster_def, asg_group_data, instance,
+                    is_test_run=False):
     logger.info(
         "[Cluster: {}] Draining instance {}"\
         .format(cluster_data["clusterName"], instance["ec2InstanceId"])
     )
-    drain_instance(
-        instance["containerInstanceArn"].split("/")[1],
-        cluster_data["clusterName"],
-    )
+    if not is_test_run:
+        drain_instance(
+            instance["containerInstanceArn"].split("/")[1],
+            cluster_data["clusterName"],
+        )
     logger.info(
         "[Cluster: {}] Terminating instance {}"\
         .format(cluster_data["clusterName"], instance["ec2InstanceId"])
     )
-    terminate_instance(
-        instance["ec2InstanceId"],
-    )
-    asg_client.set_desired_capacity(
-        AutoScalingGroupName=cluster_def["autoscale_group"],
-        DesiredCapacity=asg_group_data["DesiredCapacity"] - 1,
-    )
+    if not is_test_run:
+        terminate_instance(
+            instance["ec2InstanceId"],
+        )
+        asg_client.set_desired_capacity(
+            AutoScalingGroupName=cluster_def["autoscale_group"],
+            DesiredCapacity=asg_group_data["DesiredCapacity"] - 1,
+        )
 
 
 def get_cpu_avail(instance):
@@ -190,12 +193,21 @@ def get_mem_used(instance):
     return mem_registered - get_mem_avail(instance)
 
 
-def scale_up(cluster_data, cluster_def, asg_group_data):
+def place_task(instance_tuples, cpu, mem):
+    for i, tup in enumerate(instance_tuples):
+        if tup[0] > cpu and tup[1] > mem:
+            instance_tuples[i] = (tup[0] - cpu, tup[1] - mem)
+            return instance_tuples, True
+    return instance_tuples, False
+
+
+def scale_up(cluster_data, cluster_def, asg_group_data, services,
+             is_test_run=False):
     """
     Check if cluster should scale up.
 
-    We scale out when there is less than `cpu_buffer` or less than `mem_buffer`
-    on all instances and when `desired_capacity` < `max_capacity`.
+    We scale out when the services that need to scale cannot fit on the existing
+    instances.
     """
     logger.info(
         "[Cluster: {}] Checking if we should scale up"\
@@ -208,28 +220,36 @@ def scale_up(cluster_data, cluster_def, asg_group_data):
         )
         return False
 
-    cpu_buffer = cluster_def["cpu_buffer"]
-    mem_buffer = cluster_def["mem_buffer"]
-    for instance in cluster_data["activeContainerDescribed"]["containerInstances"]:
-        cpu_avail = get_cpu_avail(instance)
-        mem_avail = get_mem_avail(instance)
-        if cpu_avail >= cpu_buffer and mem_avail >= mem_buffer:
-           logger.info(
-               "[Cluster: {}] Cluster is sufficiently sized, not scaling up"\
-               .format(cluster_data["clusterName"])
-           )
-           return False
+    instances = [(get_cpu_avail(x), get_mem_avail(x))
+                for x in cluster_data["activeContainerDescribed"]["containerInstances"]]
+    for service in services:
+        if service.task_diff <= 0:
+            continue
+        for _ in range(service.task_diff):
+            # Try and place task.
+            instances, placeable = place_task(instances, service.task_cpu,
+                                              service.task_mem)
+            if placeable:
+                continue
 
-    desired_capacity = asg_group_data["DesiredCapacity"] + 1
+            # If we can't place the task, need to scale up.
+            desired_capacity = asg_group_data["DesiredCapacity"] + 1
+            logger.info(
+                "[Cluster: {}] Scaling cluster up to {} instances"\
+                .format(cluster_data["clusterName"], desired_capacity)
+            )
+            if not is_test_run:
+                asg_client.set_desired_capacity(
+                    AutoScalingGroupName=cluster_def["autoscale_group"],
+                    DesiredCapacity=desired_capacity,
+                )
+            return True
+
     logger.info(
-        "[Cluster: {}] Scaling cluster up to {} instances"\
-        .format(cluster_data["clusterName"], desired_capacity)
+        "[Cluster: {}] Cluster is sufficiently sized, not scaling up"\
+        .format(cluster_data["clusterName"])
     )
-    asg_client.set_desired_capacity(
-        AutoScalingGroupName=cluster_def["autoscale_group"],
-        DesiredCapacity=desired_capacity,
-    )
-    return True
+    return False
 
 
 def get_min_cpu_instance(instances):
@@ -249,7 +269,7 @@ def allocate_instances(desired_cpu, desired_mem, instance_tuples):
     return instance_tuples, False
 
 
-def place_instance(instance, instances, cluster_def):
+def place_instance(instance, instances):
     other_instances = [(get_cpu_avail(x), get_mem_avail(x)) for x in instances
                        if x["ec2InstanceId"] != instance["ec2InstanceId"]]
     logger.debug(other_instances)
@@ -258,8 +278,8 @@ def place_instance(instance, instances, cluster_def):
 
     # Check if we can fit the memory and cpu reserved by this instance onto one
     # of the other instances with enough room left over for the CPU and mem buffers.
-    cpu_needed = get_cpu_used(instance) + cluster_def["cpu_buffer"]
-    mem_needed = get_mem_used(instance) + cluster_def["mem_buffer"]
+    cpu_needed = get_cpu_used(instance)
+    mem_needed = get_mem_used(instance)
     other_instances, allocated = allocate_instances(
         cpu_needed,
         mem_needed,
@@ -269,7 +289,7 @@ def place_instance(instance, instances, cluster_def):
     return allocated
 
 
-def scale_down(cluster_data, cluster_def, asg_group_data):
+def scale_down(cluster_data, cluster_def, asg_group_data, is_test_run=False):
     """
     Check if cluster should scale down.
 
@@ -293,20 +313,22 @@ def scale_down(cluster_data, cluster_def, asg_group_data):
     # First see if we can move all of the tasks from the instance with the smallest 
     # amount of reserved memory to another instance.
     min_mem_instance = get_min_mem_instance(instances)
-    if place_instance(min_mem_instance, instances, cluster_def):
+    if place_instance(min_mem_instance, instances):
         # Scale down this instance.
         remove_instance(
-            cluster_data, cluster_def, asg_group_data, min_mem_instance
+            cluster_data, cluster_def, asg_group_data, min_mem_instance,
+            is_test_run=is_test_run,
         )
         return True
 
     # Otherwise see if we can move all of the tasks from the instance with the 
     # smallest amount of reserved CPU units to another instance.
     min_cpu_instance = get_min_cpu_instance(instances)
-    if place_instance(min_cpu_instance, instances, cluster_def):
+    if place_instance(min_cpu_instance, instances):
         # Scale down this instance.
         remove_instance(
-            cluster_data, cluster_def, asg_group_data, min_cpu_instance
+            cluster_data, cluster_def, asg_group_data, min_cpu_instance,
+            is_test_run=is_test_run,
         )
         return True
 
@@ -337,7 +359,8 @@ def log_instances(cluster_name, instances, status="active"):
         )
 
 
-def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
+def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
+                         is_test_run=False):
     """
     Scale a cluster up or down if requirements are met, otherwise do nothing.
     """
@@ -345,16 +368,12 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
         "[Cluster: {}] Current state:\n"\
         " => Minimum capacity: {}\n"\
         " => Maximum capacity: {}\n"\
-        " => Desired capacity: {}\n"\
-        " => CPU buffer:       {}\n"\
-        " => Memory buffer:    {} MB"
+        " => Desired capacity: {}"\
         .format(
             cluster_data["clusterName"],
             asg_group_data["MinSize"],
             asg_group_data["MaxSize"],
             asg_group_data["DesiredCapacity"],
-            cluster_def["cpu_buffer"],
-            cluster_def["mem_buffer"],
         )
     )
 
@@ -369,6 +388,8 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
         cluster_data,
         cluster_def,
         asg_group_data,
+        services,
+        is_test_run=is_test_run,
     )
     if scaled: return True
 
@@ -377,14 +398,16 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data):
         cluster_data,
         cluster_def,
         asg_group_data,
+        is_test_run=is_test_run,
     )
     return scaled
 
 
-def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list):
+def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list, services,
+                        is_test_run=False):
     """
     Scale EC2 instances in a cluster. Returns -1 if the maximum capacity of the
-    cluser is 0, otherwise returns 1 if a scaling event occured, and 0 if not.
+    cluster is 0, otherwise returns 1 if a scaling event occured, and 0 if not.
     """
     # Gather data needed.
     asg_group_name = cluster_def["autoscale_group"]
@@ -400,6 +423,8 @@ def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list):
         cluster_data,
         cluster_def,
         asg_group_data,
+        services,
+        is_test_run=is_test_run,
     )
 
     if asg_group_data["MaxSize"] == 0:

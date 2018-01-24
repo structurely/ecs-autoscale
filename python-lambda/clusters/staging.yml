@@ -1,7 +1,7 @@
 autoscale_group: EC2ContainerService-staging-EcsInstanceAsg-FKQIRK1S4ZDU
-cpu_buffer: 512
+cpu_buffer: 0
 mem_buffer: 512
-enabled: true
+enabled: false
 services:
   aisa-staging:
     type: celery

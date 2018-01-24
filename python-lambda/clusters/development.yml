@@ -1,6 +1,6 @@
 autoscale_group: EC2ContainerService-development-EcsInstanceAsg-1F0M2UEJEY9OF
-cpu_buffer: 200
-mem_buffer: 200
+cpu_buffer: 0
+mem_buffer: 256
 enabled: true
 services:
   aisa-development:

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-HANDLED_SERVICE_TYPES = ["celery"]
+HANDLED_SERVICE_TYPES = ["celery", "buffer"]
 
 
 def get_celery_data(url):
@@ -44,33 +44,34 @@ class Service(object):
         self.events = events
         self.data = data
 
-        task_definition_data = \
-            ecs_client.describe_task_definition(taskDefinition=task_name)
-        self.task_cpu = 0
-        self.task_mem = 0
-        for container in task_definition_data["taskDefinition"]["containerDefinitions"]:
-            self.task_cpu += container["cpu"]
-            self.task_mem += container["memory"]
+        if task_name:
+            task_definition_data = \
+                ecs_client.describe_task_definition(taskDefinition=task_name)
+            self.task_cpu = 0
+            self.task_mem = 0
+            for container in task_definition_data["taskDefinition"]["containerDefinitions"]:
+                self.task_cpu += container["cpu"]
+                self.task_mem += container["memory"]
+        else:
+            self.task_cpu = 0
+            self.task_mem = 0
 
         if self.service_type == "celery":
             self.state = get_celery_data(self.data["url"])
+        elif self.service_type == "buffer":
+            self.state = {}
 
         self.desired_tasks = None
-        self.cpu_increase = None
-        self.mem_increase = None
+        self.task_diff = None
 
     def pretend_scale(self):
         if self.task_count < self.min_tasks:
-            diff = self.min_tasks - self.task_count
+            self.task_diff = self.min_tasks - self.task_count
             self.desired_tasks = self.min_tasks
-            self.cpu_increase = self.task_cpu * diff
-            self.mem_increase = self.task_mem * diff
             return True
         if self.task_count > self.max_tasks:
-            diff = self.task_count - self.max_tasks
+            self.task_diff = self.task_count - self.max_tasks
             self.desired_tasks = self.max_tasks
-            self.cpu_increase = self.task_cpu * diff
-            self.mem_increase = self.task_mem * diff
             return True
         for event in self.events:
             metric = self.state[event["metric"]]
@@ -85,23 +86,24 @@ class Service(object):
                 pass
             else:
                 self.desired_tasks = desired_tasks
-                self.cpu_increase = self.task_cpu * event["action"]
-                self.mem_increase = self.task_mem * event["action"]
+                self.task_diff = self.desired_tasks - self.task_count
                 return True
         return False
 
-    def scale(self):
+    def scale(self, is_test_run=False):
         if self.desired_tasks is not None and \
-                self.desired_tasks != self.task_count:
+                self.task_diff != 0 and \
+                self.service_type != "buffer":
             logger.info(
                 "[Cluster: {}] Setting desired count to {} for {} service"\
                 .format(self.cluster_name, self.desired_tasks, self.service_name)
             )
-            response = ecs_client.update_service(
-                cluster=self.cluster_name,
-                service=self.service_name,
-                desiredCount=self.desired_tasks,
-            )
+            if not is_test_run:
+                response = ecs_client.update_service(
+                    cluster=self.cluster_name,
+                    service=self.service_name,
+                    desiredCount=self.desired_tasks,
+                )
 
 
 def get_services(cluster_name, cluster_def):
@@ -127,6 +129,7 @@ def gather_services(cluster_name, cluster_def):
         "[Cluster: {}] Gathering services"\
         .format(cluster_name)
     )
+
     services_data = get_services(cluster_name, cluster_def)
     services = []
     for service_name in services_data:
@@ -151,4 +154,5 @@ def gather_services(cluster_name, cluster_def):
         should_scale = service.pretend_scale()
         if should_scale:
             services.append(service)
+
     return services

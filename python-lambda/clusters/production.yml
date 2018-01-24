@@ -1,5 +1,5 @@
 autoscale_group: EC2ContainerService-production-EcsInstanceAsg-1M41VS657IN2A
-cpu_buffer: 512
+cpu_buffer: 0
 mem_buffer: 512
 enabled: false
 services:
