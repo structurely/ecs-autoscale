@@ -31,7 +31,8 @@ class Service(object):
                  data={},
                  min_tasks=0,
                  max_tasks=5,
-                 service_type="celery"):
+                 service_type="celery",
+                 state={}):
         assert service_type in HANDLED_SERVICE_TYPES
 
         self.cluster_name = cluster_name
@@ -58,8 +59,8 @@ class Service(object):
 
         if self.service_type == "celery":
             self.state = get_celery_data(self.data["url"])
-        elif self.service_type == "buffer":
-            self.state = {}
+        else:
+            self.state = state
 
         self.desired_tasks = None
         self.task_diff = None

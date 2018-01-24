@@ -104,6 +104,8 @@ ENV/
 *.zip
 python-lambda/packages
 python-lambda/clusters/*.yml
+pull_cluster_defs.sh
+push_cluster_defs.sh
 
 # testing
 test.sh
