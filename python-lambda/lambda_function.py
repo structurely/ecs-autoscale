@@ -104,7 +104,6 @@ def lambda_handler(event, context):
                             cluster_def["mem_buffer"])
                 )
                 buffer_service = Service(cluster_name, None, None, 1,
-                                         service_type="buffer",
                                          min_tasks=1,
                                          max_tasks=2)
                 buffer_service.task_cpu = cluster_def["cpu_buffer"]

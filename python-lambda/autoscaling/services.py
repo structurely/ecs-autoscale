@@ -13,12 +13,17 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-HANDLED_SERVICE_TYPES = ["celery", "buffer"]
+HANDLED_METRIC_SOURCES = ["rabbitmq", "cloudwatch"]
 
 
-def get_celery_data(url):
+def get_rabbitmq_data(url):
     r = requests.get(url)
     return r.json()
+
+
+def get_cloudwatch_data():
+    # TODO
+    return {}
 
 
 class Service(object):
@@ -28,12 +33,11 @@ class Service(object):
 
     def __init__(self, cluster_name, service_name, task_name, task_count,
                  events=[],
-                 data={},
+                 metric_sources={},
                  min_tasks=0,
                  max_tasks=5,
-                 service_type="celery",
                  state={}):
-        assert service_type in HANDLED_SERVICE_TYPES
+        assert all([x in HANDLED_METRIC_SOURCES for x in metric_sources.keys()])
 
         self.cluster_name = cluster_name
         self.service_name = service_name
@@ -41,9 +45,8 @@ class Service(object):
         self.task_name = task_name
         self.min_tasks = min_tasks
         self.max_tasks = max_tasks
-        self.service_type = service_type
         self.events = events
-        self.data = data
+        self.metric_sources = metric_sources
 
         if task_name:
             task_definition_data = \
@@ -57,15 +60,18 @@ class Service(object):
             self.task_cpu = 0
             self.task_mem = 0
 
-        if self.service_type == "celery":
-            self.state = get_celery_data(self.data["url"])
-        else:
-            self.state = state
+        self.state = state
+        for source in self.metric_sources:
+            if source == "rabbitmq":
+                url = self.metric_sources[source]["url"]
+                self.state["rabbitmq"] = get_rabbitmq_data(url)
+            elif source == "cloudwatch":
+                self.state["cloudwatch"] = get_cloudwatch_data()
 
         self.desired_tasks = None
         self.task_diff = None
 
-        if self.service_type != "buffer":
+        if self.service_name is not None:
             logger.info(
                 "[Cluster: {}, Service: {}] Current state:\n"\
                 " => Running count:    {}\n"\
@@ -92,7 +98,7 @@ class Service(object):
             return True
 
         for event in self.events:
-            metric = self.state[event["metric"]]
+            metric = self.state[event["source"]][event["metric"]]
             if event["max"] is not None and metric > event["max"]:
                 continue
 
@@ -110,16 +116,18 @@ class Service(object):
                 logger.info(
                     "[Cluster: {}, Service: {}] Event satisfied:\n"\
                     " => Metric name:   {}\n"\
+                    " => Current: {}\n"\
                     " => Min:     {}\n"\
                     " => Max:     {}\n"\
-                    " => Current: {}"\
+                    " => Action:  {}"\
                     .format(
                         self.cluster_name,
                         self.service_name,
                         event["metric"],
+                        metric,
                         event["min"],
                         event["max"],
-                        metric,
+                        event["action"],
                     )
                 )
                 return True
@@ -129,7 +137,7 @@ class Service(object):
     def scale(self, is_test_run=False):
         if self.desired_tasks is not None and \
                 self.task_diff != 0 and \
-                self.service_type != "buffer":
+                self.service_name is not None:
             logger.info(
                 "[Cluster: {}, Service: {}] Setting desired count to {}"\
                 .format(
@@ -187,8 +195,7 @@ def gather_services(cluster_name, cluster_def):
         task_count = services_data[service_name]["task_count"]
         service = Service(cluster_name, service_name, task_name, task_count,
                           events=cluster_def["services"][service_name]["events"],
-                          data=cluster_def["services"][service_name]["data"],
-                          service_type=cluster_def["services"][service_name]["type"],
+                          metric_sources=cluster_def["services"][service_name]["metric_sources"],
                           min_tasks=cluster_def["services"][service_name]["min"],
                           max_tasks=cluster_def["services"][service_name]["max"])
         should_scale = service.pretend_scale()

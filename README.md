@@ -48,22 +48,18 @@ enabled: true
 cpu_buffer: 0  # Size of buffer in CPU units.
 mem_buffer: 0  # Size of buffer in memory.
 
-# Defines scaling for individual services. Currently only celery workers
-# are supported here, but this could easily be expanded to arbitrary services,
-# as long as there is some way to grab the metrics needed through an API call.
+# Defines scaling for individual services.
 services:
   # This should be the exact name of the service as in the ECS cluster.
-  aisa-development:
+  worker:
     # Set to false to ignore service when autoscaling.
     enabled: true
 
-    # Type of service, determines how we gather the metrics needed.
-    # Currently only `celery` is supported.
-    type: celery
-
-    # Additional arbitrary data needed for gathering metrics.
-    data:
-      url: %(RABBITMQ_DEV)/celery
+    # Data sources needed for gathering metrics. Currently only `rabbitmq` and 
+    # `cloudwatch` are supported.
+    metric_sources:
+      rabbitmq:
+        url: %(RABBITMQ_DEV)/celery
 
     min: 1  # Min number of tasks.
     max: 3  # Max number of tasks.
@@ -71,48 +67,16 @@ services:
     # Autoscaling events which determine when to scale up or down.
     events:
       - metric: messages_ready  # Name of metric to use.
+        source: rabbitmq
         action: 1  # Scale up by one.
         # Conditions of the event:
         min: 5
         max: null
       - metric: messages_ready
+        source: rabbitmq
         action: -1  # Scale down by one.
         min: null
         max: 3
-
-  analytics-worker:
-    type: celery
-    data:
-      url: %(RABBITMQ_DEV)/analytics
-    min: 1
-    max: 3
-    enabled: true
-    events:
-      - metric: messages_ready
-        min: 5
-        max: null
-        action: 1  # Scale up by one.
-      - metric: messages_ready
-        min: null
-        max: 3
-        action: -1  # Scale down by one.
-
-  holmes-brain-worker-development:
-    type: celery
-    data:
-      url: %(RABBITMQ_DEV)/holmes-brain
-    min: 1
-    max: 3
-    enabled: true
-    events:
-      - metric: messages_ready
-        min: 5
-        max: null
-        action: 1  # Scale up by one.
-      - metric: messages_ready
-        min: null
-        max: 3
-        action: -1  # Scale down by one.
 ```
 
 > NOTE: We are using a similar syntax for expanding environment variables as used in `supervisor.conf` files, i.e.
