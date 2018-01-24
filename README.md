@@ -8,8 +8,11 @@ For developing and deploying, make sure you have Python 3.5 or 3.6 and have inst
 listed in `requirements.txt` (`pip3 install -r requirements.txt`). To test the function locally,
 
 ```bash
-cd ./python-lambda/ && python3 lambda_function.py
+cd ./python-lambda/ && python3 lambda_function.py --test
 ```
+
+> NOTE: The `--test` switch ensures that no actual scaling events will occur,
+it's just a simulation.
 
 In order to deploy, first run
 

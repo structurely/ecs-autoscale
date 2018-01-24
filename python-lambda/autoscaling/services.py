@@ -67,9 +67,9 @@ class Service(object):
         if self.service_type != "buffer":
             logger.info(
                 "[Cluster: {}, Service: {}] Current state:\n"\
-                " => Task count:   {}\n"\
-                " => Min capacity: {}\n"\
-                " => Max capacity: {}"\
+                " => Running count:    {}\n"\
+                " => Minimum capacity: {}\n"\
+                " => Maximum capacity: {}"\
                 .format(
                     self.cluster_name,
                     self.service_name,

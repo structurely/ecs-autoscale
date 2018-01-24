@@ -390,23 +390,25 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
     """
     Scale a cluster up or down if requirements are met, otherwise do nothing.
     """
+    active_instances = cluster_data["activeContainerDescribed"]["containerInstances"]
+    draining_instances = cluster_data["drainingContainerDescribed"]["containerInstances"]
     logger.info(
         "[Cluster: {}] Current state:\n"\
-        " => Minimum capacity: {}\n"\
-        " => Maximum capacity: {}\n"\
-        " => Desired capacity: {}"\
+        " => Active instances:   {}\n"\
+        " => Draining instances: {}\n"\
+        " => Desired capacity:   {}\n"\
+        " => Minimum capacity:   {}\n"\
+        " => Maximum capacity:   {}"\
         .format(
             cluster_data["clusterName"],
+            len(active_instances),
+            len(draining_instances),
+            asg_group_data["DesiredCapacity"],
             asg_group_data["MinSize"],
             asg_group_data["MaxSize"],
-            asg_group_data["DesiredCapacity"],
         )
     )
-
-    active_instances = cluster_data["activeContainerDescribed"]["containerInstances"]
     log_instances(cluster_data["clusterName"], active_instances)
-
-    draining_instances = cluster_data["drainingContainerDescribed"]["containerInstances"]
     log_instances(cluster_data["clusterName"], draining_instances, status="draining")
 
     # Check if we should scale up.

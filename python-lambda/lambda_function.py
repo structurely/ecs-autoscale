@@ -143,4 +143,12 @@ def lambda_handler(event, context):
 
 
 if __name__ == "__main__":
-    lambda_handler("TEST_RUN", 2)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", action="store_true")
+    opts = parser.parse_args()
+    if opts.test:
+        event = "TEST_RUN"
+    else:
+        event = 1
+    lambda_handler(event, 2)
