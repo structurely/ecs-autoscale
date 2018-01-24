@@ -32,27 +32,108 @@ make deploy
 ## Details
 
 The YAML files in `./python-lambda/clusters/` define which ECS clusters will be monitored.
-These files are well documented with comments but if you have outstanding questions let me know.
+A cluster definition will look like this:
+
+```yaml
+# Exact name of the autoscaling group.
+autoscale_group: EC2ContainerService-development-EcsInstanceAsg-1F0M2UEJEY9OF
+
+# Set to false to ignore this cluster when autoscaling.
+enabled: true
+
+# Buffer room: you can think of this as an empty service / task.
+cpu_buffer: 0  # Size of buffer in CPU units.
+mem_buffer: 0  # Size of buffer in memory.
+
+# Defines scaling for individual services. Currently only celery workers
+# are supported here, but this could easily be expanded to arbitrary services,
+# as long as there is some way to grab the metrics needed through an API call.
+services:
+  # This should be the exact name of the service as in the ECS cluster.
+  aisa-development:
+    # Set to false to ignore service when autoscaling.
+    enabled: true
+
+    # Type of service, determines how we gather the metrics needed.
+    # Currently only `celery` is supported.
+    type: celery
+
+    # Additional arbitrary data needed for gathering metrics.
+    data:
+      url: %(RABBITMQ_DEV)/celery
+
+    min: 1  # Min number of tasks.
+    max: 3  # Max number of tasks.
+
+    # Autoscaling events which determine when to scale up or down.
+    events:
+      - metric: messages_ready  # Name of metric to use.
+        action: 1  # Scale up by one.
+        # Conditions of the event:
+        min: 5
+        max: null
+      - metric: messages_ready
+        action: -1  # Scale down by one.
+        min: null
+        max: 3
+
+  analytics-worker:
+    type: celery
+    data:
+      url: %(RABBITMQ_DEV)/analytics
+    min: 1
+    max: 3
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
+
+  holmes-brain-worker-development:
+    type: celery
+    data:
+      url: %(RABBITMQ_DEV)/holmes-brain
+    min: 1
+    max: 3
+    enabled: true
+    events:
+      - metric: messages_ready
+        min: 5
+        max: null
+        action: 1  # Scale up by one.
+      - metric: messages_ready
+        min: null
+        max: 3
+        action: -1  # Scale down by one.
+```
 
 > NOTE: We are using a similar syntax for expanding environment variables as used in `supervisor.conf` files, i.e.
 something like `%(RABBITMQ_DEV)` will be expanding into the environment variable `RABBITMQ_DEV`.
-
-
-### Scaling up the cluster
-
-A cluster is triggered to scale up by one when the following two conditions are met:
-
-- the desired capacity of the corresponding autoscaling group is less than the maximum capacity, and
-- there is no EC2 instance in the autoscaling group with at least `cpu_buffer` CPU units and `mem_buffer` MB free.
-
-### Scaling down the cluster
-
-A cluster is triggered to scale down by one when the following two conditions are met:
-
-- the desired capacity of the corresponding autoscaling group is greater than the minimum capacity, and
-- all of the tasks on the EC2 instance in the cluster with either the smallest amount of reserved CPU units or memory could fit on another instance in the cluster with enough room left over for `cpu_buffer` CPU units and `mem_buffer` MB.
 
 ### Scaling individual services
 
 Individual services can be scaled up or down according to arbitrary metrics. For example,
 celery workers can be scaled according to the number of queued messages.
+
+### Scaling up the cluster
+
+A cluster is triggered to scale up by one instance when both of the following two conditions are met:
+
+- the desired capacity of the corresponding autoscaling group is less than the maximum capacity, and
+- the additional tasks for services that need to scale up cannot fit on the existing 
+instances with room left over for the predefined CPU and memory buffers.
+
+### Scaling down the cluster
+
+A cluster is triggered to scale down by one instance when both of the following two conditions are met:
+
+- the desired capacity of the corresponding autoscaling group is greater than the minimum capacity, and
+- all of the tasks on the EC2 instance in the cluster with either the smallest amount of 
+reserved CPU units or memory could fit entirely on another instance in the cluster, and 
+so that the other instances could still support all additional tasks for services that need
+to scale up with room left over for the predefined CPU and memory buffers.
