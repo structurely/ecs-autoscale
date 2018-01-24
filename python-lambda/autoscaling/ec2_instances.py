@@ -260,7 +260,7 @@ def get_min_mem_instance(instances):
     return min(instances, key=lambda x: get_mem_used(x))
 
 
-def allocate_instances(desired_cpu, desired_mem, instance_tuples):
+def allocate_instances(desired_cpu, desired_mem, instance_tuples, services):
     for i, item in enumerate(instance_tuples):
         cpu, mem = item
         if desired_cpu < cpu and desired_mem < mem:
@@ -269,27 +269,53 @@ def allocate_instances(desired_cpu, desired_mem, instance_tuples):
     return instance_tuples, False
 
 
-def place_instance(instance, instances):
+def place_instance(instance, instances, services):
+    """
+    Check if we can fit the memory and cpu reserved by this instance onto one
+    of the other instances with enough room left over for any services that
+    need to scale out.
+    """
     other_instances = [(get_cpu_avail(x), get_mem_avail(x)) for x in instances
                        if x["ec2InstanceId"] != instance["ec2InstanceId"]]
     logger.debug(other_instances)
     if not other_instances:
         return False
 
-    # Check if we can fit the memory and cpu reserved by this instance onto one
-    # of the other instances with enough room left over for the CPU and mem buffers.
+    # First check if we can place the tasks on this instance onto another 
+    # instance.
     cpu_needed = get_cpu_used(instance)
     mem_needed = get_mem_used(instance)
     other_instances, allocated = allocate_instances(
         cpu_needed,
         mem_needed,
         other_instances,
+        services,
     )
-    logger.debug(other_instances)
-    return allocated
+    if not allocated:
+        return False
+
+    # Now check if we still have room left for all of the services that need
+    # to scale up.
+    for service in services:
+        # Ignore services that are scaling down.
+        if service.task_diff <= 0:
+            continue
+
+        # Try and place task.
+        for _ in range(service.task_diff):
+            other_instances, placeable = place_task(
+                other_instances, service.task_cpu, service.task_mem
+            )
+            if not placeable:
+                return False
+
+    # If we have gotten this far, all new tasks are placeable onto one of the 
+    # other instances.
+    return True
 
 
-def scale_down(cluster_data, cluster_def, asg_group_data, is_test_run=False):
+def scale_down(cluster_data, cluster_def, asg_group_data, services,
+               is_test_run=False):
     """
     Check if cluster should scale down.
 
@@ -313,7 +339,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data, is_test_run=False):
     # First see if we can move all of the tasks from the instance with the smallest 
     # amount of reserved memory to another instance.
     min_mem_instance = get_min_mem_instance(instances)
-    if place_instance(min_mem_instance, instances):
+    if place_instance(min_mem_instance, instances, services):
         # Scale down this instance.
         remove_instance(
             cluster_data, cluster_def, asg_group_data, min_mem_instance,
@@ -324,7 +350,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data, is_test_run=False):
     # Otherwise see if we can move all of the tasks from the instance with the 
     # smallest amount of reserved CPU units to another instance.
     min_cpu_instance = get_min_cpu_instance(instances)
-    if place_instance(min_cpu_instance, instances):
+    if place_instance(min_cpu_instance, instances, services):
         # Scale down this instance.
         remove_instance(
             cluster_data, cluster_def, asg_group_data, min_cpu_instance,
@@ -398,6 +424,7 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
         cluster_data,
         cluster_def,
         asg_group_data,
+        services,
         is_test_run=is_test_run,
     )
     return scaled

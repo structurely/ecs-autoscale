@@ -9,7 +9,7 @@ import requests
 from . import ecs_client
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
@@ -64,21 +64,40 @@ class Service(object):
         self.desired_tasks = None
         self.task_diff = None
 
+        if self.service_type != "buffer":
+            logger.info(
+                "[Cluster: {}, Service: {}] Current state:\n"\
+                " => Task count:   {}\n"\
+                " => Min capacity: {}\n"\
+                " => Max capacity: {}"\
+                .format(
+                    self.cluster_name,
+                    self.service_name,
+                    self.task_count,
+                    self.min_tasks,
+                    self.max_tasks,
+                )
+            )
+
     def pretend_scale(self):
         if self.task_count < self.min_tasks:
             self.task_diff = self.min_tasks - self.task_count
             self.desired_tasks = self.min_tasks
             return True
+
         if self.task_count > self.max_tasks:
             self.task_diff = self.task_count - self.max_tasks
             self.desired_tasks = self.max_tasks
             return True
+
         for event in self.events:
             metric = self.state[event["metric"]]
             if event["max"] is not None and metric > event["max"]:
                 continue
+
             if event["min"] is not None and metric < event["min"]:
                 continue
+
             desired_tasks = self.task_count + event["action"]
             if desired_tasks < self.min_tasks:
                 pass
@@ -87,7 +106,23 @@ class Service(object):
             else:
                 self.desired_tasks = desired_tasks
                 self.task_diff = self.desired_tasks - self.task_count
+                logger.info(
+                    "[Cluster: {}, Service: {}] Event satisfied:\n"\
+                    " => Metric name:   {}\n"\
+                    " => Min:     {}\n"\
+                    " => Max:     {}\n"\
+                    " => Current: {}"\
+                    .format(
+                        self.cluster_name,
+                        self.service_name,
+                        event["metric"],
+                        event["min"],
+                        event["max"],
+                        metric,
+                    )
+                )
                 return True
+
         return False
 
     def scale(self, is_test_run=False):
@@ -95,8 +130,12 @@ class Service(object):
                 self.task_diff != 0 and \
                 self.service_type != "buffer":
             logger.info(
-                "[Cluster: {}] Setting desired count to {} for {} service"\
-                .format(self.cluster_name, self.desired_tasks, self.service_name)
+                "[Cluster: {}, Service: {}] Setting desired count to {}"\
+                .format(
+                    self.cluster_name,
+                    self.service_name,
+                    self.desired_tasks,
+                )
             )
             if not is_test_run:
                 response = ecs_client.update_service(

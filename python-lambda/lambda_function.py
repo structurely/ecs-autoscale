@@ -96,7 +96,7 @@ def lambda_handler(event, context):
 
             # (2 / 4) Add a fake task to account for CPU buffer and mem buffer.
             if cluster_def["cpu_buffer"] > 0 or cluster_def["mem_buffer"] > 0:
-                logger.warning(
+                logger.info(
                     "[Cluster: {}] Buffer size requested:\n"\
                     " => CPU buffer:    {}\n"\
                     " => Memory buffer: {} MB"\
@@ -118,7 +118,8 @@ def lambda_handler(event, context):
             #
             # If we do not need to scale out, we check if we can place all of
             # tasks from the instance with the smallest amount of reserved
-            # memory or CPU onto another instance in the cluster.
+            # memory or CPU onto another instance in the cluster. And then
+            # still have room for all services that need to scale out.
             res = scale_ec2_instances(
                 cluster_name, cluster_def, asg_data, cluster_list, services,
                 is_test_run=is_test_run,
