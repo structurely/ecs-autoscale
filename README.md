@@ -1,45 +1,37 @@
 # ecs-autoscale
 
-Lambda function for autoscaling ECS clusters.
+This is a Lambda function that allows you to automatically
+scale EC2 instances and services within an ECS cluster simultaneously based on 
+arbitrary metrics from sources not limited to CloudWatch.
 
-## Developing and deploying
+## Requirements
 
-For developing and deploying, make sure you have Python 3.5 or 3.6 and have installed the requirements
-listed in `requirements.txt` (`pip3 install -r requirements.txt`). To test the function locally,
+Make sure you have Python 3.5 or 3.6 and have installed the requirements
+listed in `requirements.txt` (`pip3 install -r requirements.txt`). 
+Currently this has only been testing on OS X and Linux. Windows is not supported.
 
-```bash
-cd ./python-lambda/ && python3 lambda_function.py --test
-```
+## Quick start
 
-> NOTE: The `--test` switch ensures that no actual scaling events will occur,
-it's just a simulation.
+Suppose we want to set up autoscaling for a cluster on ECS called `my_cluster`
+with two services running: `backend` and `worker`. Suppose `backend` is just a simple
+web server and `worker` is a [celery](http://www.celeryproject.org) worker 
+for handling long-running tasks for the web server with a RabbitMQ instance as the broker.
 
-In order to deploy, first run
+In this case we want to scale the web server based on CPU utilization and scale the
+celery worker based on the number of waiting tasks (which is given by the number of `ready` 
+messages on the RabbitMQ instance).
 
-```
-make setup
-```
+**Step 1: Define the cluster scaling requirements**
 
-This will
+We create a YAML file `./python-lambda/clusters/my_cluster.yml`.
 
-- Create a Python 3 virtualenv called `ecs-autoscale`.
-- Install the requirements to that virtualenv.
-- Create a symbolic link `python-lambda/packages` to the site-packages directory of that virtualenv.
+> NOTE: The name of the YAML file sans extension must exactly match the name of the cluster on ECS.
 
-Then you can deploy the with 
-
-```
-make deploy
-```
-
-## Details
-
-The YAML files in `./python-lambda/clusters/` define which ECS clusters will be monitored.
-A cluster definition will look like this:
+Our cluster definition will look like this:
 
 ```yaml
 # Exact name of the autoscaling group.
-autoscale_group: EC2ContainerService-development-EcsInstanceAsg-1F0M2UEJEY9OF
+autoscale_group: EC2ContainerService-my_cluster-EcsInstanceAsg-AAAAA
 
 # Set to false to ignore this cluster when autoscaling.
 enabled: true
@@ -55,39 +47,126 @@ services:
     # Set to false to ignore service when autoscaling.
     enabled: true
 
-    # Data sources needed for gathering metrics. Currently only `rabbitmq` and 
-    # `cloudwatch` are supported.
-    metric_sources:
-      rabbitmq:
-        url: %(RABBITMQ_DEV)/celery
-
     min: 1  # Min number of tasks.
     max: 3  # Max number of tasks.
 
+    metric_sources:
+      # Data sources needed for gathering metrics. Currently only `rabbitmq` and 
+      # `cloudwatch` are supported. Only one statistic from one source is needed.
+      # For more information on the metrics available, see below under "Metrics".
+      rabbitmq:
+        - url: https://username:password@my_rabbitmq_host.com/api/queues/celery
+          statistics:
+            - name: messages_ready
+              alias: queue_length
+
     # Autoscaling events which determine when to scale up or down.
     events:
-      - metric: messages_ready  # Name of metric to use.
-        source: rabbitmq
+      - metric: queue_length  # Name of metric to use.
         action: 1  # Scale up by one.
         # Conditions of the event:
         min: 5
         max: null
-      - metric: messages_ready
-        source: rabbitmq
+      - metric: queue_length
         action: -1  # Scale down by one.
         min: null
         max: 3
+
+  backend:
+    enabled: true
+    min: 1
+    max: 3
+    metric_sources:
+      cloudwatch:
+        - namespace: AWS/ECS
+          metric_name: CPUUtilization
+          dimensions:
+            - name: ClusterName
+              value: my_cluster
+            - name: ServiceName
+              value: backend
+          period: 300
+          statistics:
+            - name: Average
+              alias: cpu_usage
+
+    events:
+      - metric: cpu_usage
+        action: 1  # Scale up by 1
+        min: 10
+        max: null
+      - metric: cpu_usage
+        action: -1  # Scale down by 1
+        min: null
+        max: 1
 ```
 
-> NOTE: We are using a similar syntax for expanding environment variables as used in `supervisor.conf` files, i.e.
-something like `%(RABBITMQ_DEV)` will be expanding into the environment variable `RABBITMQ_DEV`.
+> NOTE: You may not want to store sensitive information in your cluster definition,
+such as the username and password in the RabbitMQ URL above. In this case you could store
+those values in environment variables and pass them to the cluster definition
+using our special syntax: `%(VARIABLE_NAME)`. So, for example, suppose
+we have the environment variables `USERNAME` and `PASSWORD`. Then the line above
+with the url for RabbitMQ would become `url: https://%(USERNAME):%(PASSWORD)@my_rabbitmq_host.com/api/queues/celery`.
 
-### Scaling individual services
+
+**Step 2: Test the function locally**
+
+To test the function locally,
+
+```bash
+cd ./python-lambda/ && python3 lambda_function.py --test
+```
+
+> NOTE: The `--test` switch ensures that no actual scaling events will occur,
+it's just a simulation.
+
+
+**Step 3: Setup and deployment**
+
+Run the script `./bootstrap.sh`. This will
+
+- Create a Python 3 virtualenv called `ecs-autoscale`.
+- Install the requirements to that virtualenv.
+- Create a symbolic link `python-lambda/packages` to the site-packages directory of that virtualenv.
+- Create an IAM policy that gives access to the resources the lambda function will need.
+- Create a role for the Lambda function to use, an attach the policy just created to that role.
+- Build a deployment package.
+- Create a Lambda function with the role attached and upload the deployment package.
+
+
+**Step 5: Create a trigger to execute your function**
+
+In this example we will create a simple CloudWatch that triggers our Lambda function to run
+every 5 minutes.
+
+To do this, first login to the AWS Console and the go to the CloudWatch service. On the left side menu,
+click on "Rules". You should see a page that looks like this:
+
+![step1](.figures/step1.png)
+
+Then click "Create rule" by the top. You should now see a page that looks like this:
+
+![step2](.figures/step2.png)
+
+Make sure you check "Schedule" instead of "Event Pattern", and then set it to a fixed
+rate of 5 minutes. Then on the right side click "Add target" and choose "ecs-autoscale"
+from the drop down.
+
+Next click "Configure details", give your rule a name, and then click "Create rule".
+
+You're all set! After 5 minutes your function should run.
+
+
+## Details
+
+### Scaling
+
+#### Scaling individual services
 
 Individual services can be scaled up or down according to arbitrary metrics. For example,
 celery workers can be scaled according to the number of queued messages.
 
-### Scaling up the cluster
+#### Scaling up the cluster
 
 A cluster is triggered to scale up by one instance when both of the following two conditions are met:
 
@@ -95,7 +174,7 @@ A cluster is triggered to scale up by one instance when both of the following tw
 - the additional tasks for services that need to scale up cannot fit on the existing 
 instances with room left over for the predefined CPU and memory buffers.
 
-### Scaling down the cluster
+#### Scaling down the cluster
 
 A cluster is triggered to scale down by one instance when both of the following two conditions are met:
 
@@ -104,3 +183,13 @@ A cluster is triggered to scale down by one instance when both of the following 
 reserved CPU units or memory could fit entirely on another instance in the cluster, and 
 so that the other instances could still support all additional tasks for services that need
 to scale up with room left over for the predefined CPU and memory buffers.
+
+## Metrics
+
+### Sources
+
+#### Cloudwatch
+
+#### RabbitMQ
+
+### Metric arithmetic

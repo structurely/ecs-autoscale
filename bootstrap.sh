@@ -42,7 +42,6 @@ cd python-lambda
 zip -r ../deployment.zip *
 cd -
 
-
 # Create lambda function.
 echo "Creating Lambda function ecs-autoscale"
 aws lambda create-function \
