@@ -9,7 +9,6 @@ logger.setLevel(logging.INFO)
 
 
 def _format_dimensions(dimensions):
-    # TODO: do this when we load the YAML for better efficiency.
     out = []
     for item in dimensions:
         out.append({

@@ -9,16 +9,15 @@ import datetime
 import inspect
 import logging
 import os
-import re
 import sys
 
 base_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
 sys.path.append(os.path.join(base_path, "./packages/"))
 
-import yaml
 import boto3
 
 from autoscaling import asg_client, ecs_client, LOG_LEVEL
+from autoscaling.cluster_definitions import load_cluster
 from autoscaling.ec2_instances import scale_ec2_instances
 from autoscaling.services import gather_services, Service
 
@@ -27,23 +26,15 @@ logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
 
 # Load cluster autoscaling definitions.
-clusters_defs_path = os.path.join(
-    base_path,
-    "clusters/"
-)
-
 base_cluster_defs = {}
+clusters_defs_path = os.path.join(base_path, "clusters/")
 for fname in os.listdir(clusters_defs_path):
     if not fname.endswith(".yml"):
         continue
     path = os.path.join(clusters_defs_path, fname)
     cluster_name = os.path.splitext(fname)[0]
-    with open(path, "r") as f:
-        raw = f.read()
-        # Replace env variables in the yaml defs.
-        for match, env_var in re.findall(r"(%\(([A-Za-z_]+)\))", raw):
-            raw = raw.replace(match, os.environ[env_var])
-    base_cluster_defs[cluster_name] = yaml.load(raw)
+    data = load_cluster(path)
+    base_cluster_defs[cluster_name] = data
 
 
 def clusters():

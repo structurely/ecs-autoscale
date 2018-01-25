@@ -1,11 +1,3 @@
-.PHONY: setup
-setup:
-	which python3 | mkvirtualenv ecs-autoscale -p
-	workon ecs-autoscale && \
-			cd python-lambda && \
-			pip install -r requirements.txt && \
-			ln -s `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` packages
-
 .PHONY: build
 build:
 	find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
