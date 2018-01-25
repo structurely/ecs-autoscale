@@ -142,11 +142,11 @@ every 5 minutes.
 To do this, first login to the AWS Console and the go to the CloudWatch service. On the left side menu,
 click on "Rules". You should see a page that looks like this:
 
-![step1](.figures/step1.png)
+![step1](https://github.com/structurely/ecs-autoscale/blob/master/.figures/step1.png)
 
 Then click "Create rule" by the top. You should now see a page that looks like this:
 
-![step2](.figures/step2.png)
+![step2](https://github.com/structurely/ecs-autoscale/blob/master/.figures/step2.png)
 
 Make sure you check "Schedule" instead of "Event Pattern", and then set it to a fixed
 rate of 5 minutes. Then on the right side click "Add target" and choose "ecs-autoscale"
