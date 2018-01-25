@@ -3,3 +3,4 @@ boto3
 PyYAML
 virtualenv
 virtualenvwrapper
+pytest

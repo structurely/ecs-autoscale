@@ -7,23 +7,12 @@ import logging
 import requests
 
 from . import ecs_client
+import autoscaling.metric_sources.rabbitmq
+import autoscaling.metric_sources.cloudwatch
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
-HANDLED_METRIC_SOURCES = ["rabbitmq", "cloudwatch"]
-
-
-def get_rabbitmq_data(url):
-    r = requests.get(url)
-    return r.json()
-
-
-def get_cloudwatch_data():
-    # TODO
-    return {}
 
 
 class Service(object):
@@ -37,8 +26,6 @@ class Service(object):
                  min_tasks=0,
                  max_tasks=5,
                  state={}):
-        assert all([x in HANDLED_METRIC_SOURCES for x in metric_sources.keys()])
-
         self.cluster_name = cluster_name
         self.service_name = service_name
         self.task_count = task_count
@@ -60,13 +47,14 @@ class Service(object):
             self.task_cpu = 0
             self.task_mem = 0
 
+        # Get metric data.
         self.state = state
-        for source in self.metric_sources:
-            if source == "rabbitmq":
-                url = self.metric_sources[source]["url"]
-                self.state["rabbitmq"] = get_rabbitmq_data(url)
-            elif source == "cloudwatch":
-                self.state["cloudwatch"] = get_cloudwatch_data()
+        for source_name in self.metric_sources:
+            source = getattr(autoscaling.metric_sources, source_name)
+            for item in self.metric_sources[source_name]:
+                res = source.get_data(**item)
+                if res:
+                    self.state.update(res)
 
         self.desired_tasks = None
         self.task_diff = None
@@ -98,7 +86,10 @@ class Service(object):
             return True
 
         for event in self.events:
-            metric = self.state[event["source"]][event["metric"]]
+            metric = self.state[event["metric"]]
+            if metric is None:
+                return False
+
             if event["max"] is not None and metric > event["max"]:
                 continue
 
