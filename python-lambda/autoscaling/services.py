@@ -3,6 +3,7 @@ Handles scaling individual services within a cluster.
 """
 
 import logging
+import re
 
 import requests
 
@@ -13,6 +14,7 @@ import autoscaling.metric_sources.cloudwatch
 
 logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
+
 
 
 class Service(object):
@@ -74,6 +76,21 @@ class Service(object):
                 )
             )
 
+    def _get_metric(self, metric_str):
+        metric_str = re.sub(r"(\*|\+|-|/)", " \g<1> ", metric_str)
+        metric_list = metric_str.split(' ')
+        metric = self.state[metric_list[0]]
+        operator = None
+        for item in metric_list[1:]:
+            if not item:
+                continue
+            if item in ["*", "+", "-", "/"]:
+                operator = item
+            else:
+                new_metric = self.state[item]
+                exec("metric {}= new_metric".format(operator))
+        return metric
+
     def pretend_scale(self):
         if self.task_count < self.min_tasks:
             self.task_diff = self.min_tasks - self.task_count
@@ -86,7 +103,8 @@ class Service(object):
             return True
 
         for event in self.events:
-            metric = self.state[event["metric"]]
+            metric_name = event["metric"]
+            metric = self._get_metric(metric_name)
             if metric is None:
                 return False
 
@@ -114,7 +132,7 @@ class Service(object):
                     .format(
                         self.cluster_name,
                         self.service_name,
-                        event["metric"],
+                        metric_name,
                         metric,
                         event["min"],
                         event["max"],
