@@ -16,7 +16,6 @@ logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
 
 
-
 class Service(object):
     """
     An object for scaling arbitrary services.
@@ -77,19 +76,9 @@ class Service(object):
             )
 
     def _get_metric(self, metric_str):
-        metric_str = re.sub(r"(\*|\+|-|/)", " \g<1> ", metric_str)
-        metric_list = metric_str.split(' ')
-        metric = self.state[metric_list[0]]
-        operator = None
-        for item in metric_list[1:]:
-            if not item:
-                continue
-            if item in ["*", "+", "-", "/"]:
-                operator = item
-            else:
-                new_metric = self.state[item]
-                exec("metric {}= new_metric".format(operator))
-        return metric
+        for metric_name in self.state:
+            metric_str = metric_str.replace(metric_name, str(self.state[metric_name]))
+        return eval(metric_str)
 
     def pretend_scale(self):
         if self.task_count < self.min_tasks:
