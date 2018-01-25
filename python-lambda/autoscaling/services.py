@@ -6,13 +6,13 @@ import logging
 
 import requests
 
-from . import ecs_client
+from . import ecs_client, LOG_LEVEL
 import autoscaling.metric_sources.rabbitmq
 import autoscaling.metric_sources.cloudwatch
 
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(LOG_LEVEL)
 
 
 class Service(object):

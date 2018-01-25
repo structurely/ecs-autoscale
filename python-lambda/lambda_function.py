@@ -18,14 +18,13 @@ sys.path.append(os.path.join(base_path, "./packages/"))
 import yaml
 import boto3
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-from autoscaling import asg_client, ecs_client
+from autoscaling import asg_client, ecs_client, LOG_LEVEL
 from autoscaling.ec2_instances import scale_ec2_instances
 from autoscaling.services import gather_services, Service
 
+
+logger = logging.getLogger()
+logger.setLevel(LOG_LEVEL)
 
 # Load cluster autoscaling definitions.
 clusters_defs_path = os.path.join(
