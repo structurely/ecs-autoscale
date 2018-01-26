@@ -7,6 +7,14 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
+def _get_nested_field(data, field):
+    d = data
+    levels = field.split(".")
+    for l in levels:
+        d = d[l]
+    return d
+
+
 def get_data(url=None, statistics=[]):
     out = {x["alias"]: None for x in statistics}
     r = requests.get(url)
@@ -22,7 +30,7 @@ def get_data(url=None, statistics=[]):
         log_messages = ["Retreived the following statistics from RabbitMQ:"]
         for x in statistics:
             key = x["alias"]
-            val = data[x["name"]]
+            val = _get_nested_field(data, x["name"])
             out[key] = val
             log_messages.append(" => {}: {}".format(key, val))
         if out:
