@@ -12,3 +12,7 @@ push:
 
 .PHONY: deploy
 deploy: build push
+
+.PHONY: test
+test:
+	pytest

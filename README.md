@@ -21,6 +21,12 @@ In this case we want to scale the web server based on CPU utilization and scale 
 celery worker based on the number of waiting tasks (which is given by the number of `ready` 
 messages on the RabbitMQ instance).
 
+We can get the CPU utilization of the web server directly from CloudWatch,
+but in order to get the number of queued messages in the RabbitMQ instance,
+we will need to make an HTTP GET request to the api of the queue.
+
+> To learn more about the RabbitMQ API, see [https://cdn.rawgit.com/rabbitmq/rabbitmq-management/v3.7.2/priv/www/api/index.html](https://cdn.rawgit.com/rabbitmq/rabbitmq-management/v3.7.2/priv/www/api/index.html).
+
 **Step 1: Define the cluster scaling requirements**
 
 We create a YAML file `./python-lambda/clusters/my_cluster.yml`.
@@ -51,14 +57,17 @@ services:
     max: 3  # Max number of tasks.
 
     metric_sources:
-      # Data sources needed for gathering metrics. Currently only `rabbitmq` and 
+      # Data sources needed for gathering metrics. Currently only `third_party` and 
       # `cloudwatch` are supported. Only one statistic from one source is needed.
       # For more information on the metrics available, see below under "Metrics".
-      rabbitmq:
+      third_party:
         - url: https://username:password@my_rabbitmq_host.com/api/queues/celery
           statistics:
             - name: messages_ready
               alias: queue_length
+          # In this case it is assumed that we will make a GET request to the url
+          # given, and that request will return a JSON object that contains
+          # the field `messages_ready`.
 
     # Autoscaling events which determine when to scale up or down.
     events:
@@ -163,7 +172,8 @@ You're all set! After 5 minutes your function should run.
 
 #### Scaling individual services
 
-Individual services can be scaled up or down according to arbitrary metrics. For example,
+Individual services can be scaled up or down according to arbitrary metrics, as
+long as those metrics can be gathered through a simple HTTP request. For example,
 celery workers can be scaled according to the number of queued messages.
 
 #### Scaling up the cluster
@@ -188,8 +198,25 @@ to scale up with room left over for the predefined CPU and memory buffers.
 
 ### Sources
 
-#### Cloudwatch
+#### CloudWatch
 
 #### RabbitMQ
 
 ### Metric arithmetic
+
+You can easily combine metrics with arbitrary arithmetic operations.
+
+## Logging
+
+Logs from the Lambda function will be sent to a CloudWatch logstream `/aws/lambda/ecs-autoscale`.
+You can also set the log level easily by setting the environment variable `LOG_LEVEL`, which can
+be set to
+
+- `debug`
+- `info`
+- `warning`
+- `error`
+
+## Bugs
+
+To report a bug, submit an issue at [https://github.com/structurely/ecs-autoscale/issues/new](https://github.com/structurely/ecs-autoscale/issues/new).

@@ -8,7 +8,7 @@ import re
 import requests
 
 from . import ecs_client, LOG_LEVEL
-import autoscaling.metric_sources.rabbitmq
+import autoscaling.metric_sources.third_party
 import autoscaling.metric_sources.cloudwatch
 
 
