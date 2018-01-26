@@ -105,30 +105,35 @@ class Service(object):
 
             desired_tasks = self.task_count + event["action"]
             if desired_tasks < self.min_tasks:
-                pass
+                if self.task_count == self.min_tasks:
+                    continue
+                desired_tasks = self.min_tasks
+
             elif desired_tasks > self.max_tasks:
-                pass
-            else:
-                self.desired_tasks = desired_tasks
-                self.task_diff = self.desired_tasks - self.task_count
-                logger.info(
-                    "[Cluster: {}, Service: {}] Event satisfied:\n"\
-                    " => Metric name:   {}\n"\
-                    " => Current: {}\n"\
-                    " => Min:     {}\n"\
-                    " => Max:     {}\n"\
-                    " => Action:  {}"\
-                    .format(
-                        self.cluster_name,
-                        self.service_name,
-                        metric_name,
-                        metric,
-                        event["min"],
-                        event["max"],
-                        event["action"],
-                    )
+                if self.task_count == self.max_tasks:
+                    continue
+                desired_tasks = self.max_tasks
+
+            self.desired_tasks = desired_tasks
+            self.task_diff = self.desired_tasks - self.task_count
+            logger.info(
+                "[Cluster: {}, Service: {}] Event satisfied:\n"\
+                " => Metric name:   {}\n"\
+                " => Current: {}\n"\
+                " => Min:     {}\n"\
+                " => Max:     {}\n"\
+                " => Action:  {}"\
+                .format(
+                    self.cluster_name,
+                    self.service_name,
+                    metric_name,
+                    metric,
+                    event["min"],
+                    event["max"],
+                    event["action"],
                 )
-                return True
+            )
+            return True
 
         return False
 
