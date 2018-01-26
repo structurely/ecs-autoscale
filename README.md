@@ -46,6 +46,11 @@ enabled: true
 cpu_buffer: 0  # Size of buffer in CPU units.
 mem_buffer: 0  # Size of buffer in memory.
 
+# Optionally specify the minimum and maximum number of instances for the cluster's
+# autoscaling group from here.
+min: 1
+max: 4
+
 # Defines scaling for individual services.
 services:
   # This should be the exact name of the service as in the ECS cluster.
@@ -293,3 +298,12 @@ be set to
 ## Bugs
 
 To report a bug, submit an issue at [https://github.com/structurely/ecs-autoscale/issues/new](https://github.com/structurely/ecs-autoscale/issues/new).
+
+
+## Credit where credit is due
+
+This project was inspired by the following articles and projects:
+
+- [http://garbe.io/blog/2017/04/12/a-better-solution-to-ecs-autoscaling/](http://garbe.io/blog/2017/04/12/a-better-solution-to-ecs-autoscaling/)
+- [https://medium.com/@omerxx/how-to-scale-in-ecs-hosts-2d0906d2ba](https://medium.com/@omerxx/how-to-scale-in-ecs-hosts-2d0906d2ba)
+- [https://github.com/omerxx/ecscale/blob/master/ecscale.py](https://github.com/omerxx/ecscale/blob/master/ecscale.py)

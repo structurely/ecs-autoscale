@@ -444,6 +444,29 @@ def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list, servi
         cluster_name,
     )
 
+    # Adjust min and max requirements if cluster def does not match asg_group_data.
+    # We treat the values in the cluster def as the truth.
+    min_instances = cluster_def.get("min")
+    max_instances = cluster_def.get("max")
+    if min_instances is not None and max_instances is not None:
+        if min_instances != asg_group_data["MinSize"] or \
+                max_instances != asg_group_data["MaxSize"]:
+            logger.warning(
+                "[Cluster: {}] Mismatched min or max size of cluster with "\
+                "autoscaling group data. Using settings from cluster definition:\n"\
+                " => Minimum: {}\n"\
+                " => Maximum: {}"\
+                .format(cluster_name, min_instances, max_instances)
+            )
+            if not is_test_run:
+                asg_client.update_auto_scaling_group(
+                    AutoScalingGroupName=cluster_def["autoscale_group"],
+                    MinSize=min_instances,
+                    MaxSize=max_instances,
+                )
+            asg_group_data["MinSize"] = min_instances
+            asg_group_data["MaxSize"] = max_instances
+
     # Attempt scaling.
     res = _scale_ec2_instances(
         cluster_data,
