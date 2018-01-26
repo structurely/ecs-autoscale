@@ -34,14 +34,14 @@ def get_asg_group_data(asg_group_name, asg_data):
         )
 
 
-def empty_instances(clusterArn, activeContainerDescribed):
+def get_empty_instances(active_container_described):
     """
     Returns a object of empty instances in cluster.
     """
     instances = []
     empty_instances = {}
 
-    for inst in activeContainerDescribed['containerInstances']:
+    for inst in active_container_described['containerInstances']:
         if inst['runningTasksCount'] == 0 and inst['pendingTasksCount'] == 0:
             empty_instances.update(
                 {inst['ec2InstanceId']: inst['containerInstanceArn']}
@@ -50,14 +50,14 @@ def empty_instances(clusterArn, activeContainerDescribed):
     return empty_instances
 
 
-def draining_instances(clusterArn, drainingContainerDescribed):
+def get_draining_instances(draining_container_described):
     """
     Returns an object of draining instances in cluster.
     """
     instances = []
     draining_instances = {}
 
-    for inst in drainingContainerDescribed['containerInstances']:
+    for inst in draining_container_described['containerInstances']:
         draining_instances.update(
             {inst['ec2InstanceId']: inst['containerInstanceArn']}
         )
@@ -66,52 +66,49 @@ def draining_instances(clusterArn, drainingContainerDescribed):
 
 
 def retrieve_cluster_data(cluster_arn, cluster_name):
-    activeContainerInstances = ecs_client.list_container_instances(
+    active_container_instances = ecs_client.list_container_instances(
         cluster=cluster_arn,
         status='ACTIVE'
     )
 
-    if activeContainerInstances['containerInstanceArns']:
-        activeContainerDescribed = ecs_client.describe_container_instances(
+    if active_container_instances['containerInstanceArns']:
+        active_container_described = ecs_client.describe_container_instances(
             cluster=cluster_arn,
-            containerInstances=activeContainerInstances['containerInstanceArns']
+            containerInstances=active_container_instances['containerInstanceArns']
         )
     else:
         logger.warning(
             "[Cluster: {}] No active instances in cluster"\
             .format(cluster_name)
         )
-        activeContainerDescribed = {
+        active_container_described = {
             "containerInstances": []
         }
 
-    drainingContainerInstances = ecs_client.list_container_instances(
+    draining_container_instances = ecs_client.list_container_instances(
         cluster=cluster_arn,
         status='DRAINING'
     )
-    if drainingContainerInstances['containerInstanceArns']:
-        drainingContainerDescribed = ecs_client.describe_container_instances(
+    if draining_container_instances['containerInstanceArns']:
+        draining_container_described = ecs_client.describe_container_instances(
             cluster=cluster_arn,
-            containerInstances=drainingContainerInstances['containerInstanceArns']
+            containerInstances=draining_container_instances['containerInstanceArns']
         )
-        drainingInstances = draining_instances(
-            cluster_arn,
-            drainingContainerDescribed
-        )
+        draining_instances = get_draining_instances(draining_container_described)
     else:
-        drainingInstances = {}
-        drainingContainerDescribed = {
+        draining_instances = {}
+        draining_container_described = {
             "containerInstances": []
         }
 
-    emptyInstances = empty_instances(cluster_arn, activeContainerDescribed)
+    empty_instances = get_empty_instances(active_container_described)
 
     dataObj = {
         'clusterName': cluster_name,
-        'activeContainerDescribed': activeContainerDescribed,
-        'drainingInstances': drainingInstances,
-        'emptyInstances': emptyInstances,
-        'drainingContainerDescribed': drainingContainerDescribed
+        'activeContainerDescribed': active_container_described,
+        'drainingInstances': draining_instances,
+        'emptyInstances': empty_instances,
+        'drainingContainerDescribed': draining_container_described
     }
 
     return dataObj
