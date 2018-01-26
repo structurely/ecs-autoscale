@@ -198,13 +198,86 @@ to scale up with room left over for the predefined CPU and memory buffers.
 
 ### Sources
 
-#### CloudWatch
+In order to use a metric, you need to define the source of the metric under
+`metric_sources` in the YAML definition. In the example above, we defined a third party
+metric like this:
 
-#### RabbitMQ
+```yaml
+third_party:
+  - url: https://username:password@my_rabbitmq_host.com/api/queues/celery
+    statistics:
+      - name: messages_ready
+        alias: queue_length
+```
+
+This created a metric called `queue_length` based on `messages_ready`.
+The alias `queue_length` was arbitrary, and is the name used to reference this
+metric when defining events like in the above example:
+
+```yaml
+events:
+  - metric: queue_length
+    action: 1
+    min: 5
+    max: null
+  - metric: queue_length
+    action: -1
+    min: null
+    max: 3
+```
+
+In general, third party metrics are gathered by making an HTTP GET request to the
+url given. It is then assumed that the GET request will return a JSON object with
+a field name corresponding to the `name` of the metric. To retreive a nested field
+in the JSON object, you can use dot notation.
+
+Defining metrics from CloudWatch are pretty straight forward as well, like in our example:
+
+```yaml
+metric_sources:
+  cloudwatch:
+    - namespace: AWS/ECS
+      metric_name: CPUUtilization
+      dimensions:
+        - name: ClusterName
+          value: my_cluster
+        - name: ServiceName
+          value: backend
+      period: 300
+      statistics:
+        - name: Average
+          alias: cpu_usage
+```
+
+One thing to watch out for is how you define the `statistics` field above.
+The `name` part has to match exactly with a statistic used by CloudWatch,
+and the `alias` part is an arbitrary name you use to reference this metric when
+defining events.
+
 
 ### Metric arithmetic
 
 You can easily combine metrics with arbitrary arithmetic operations.
+For example, suppose we create two metrics with aliases `cpu_usage` and `mem_usage`.
+We could create an event based on the product of these two metrics like this:
+
+```yaml
+events:
+  - metric: cpu_usage * mem_usage * 100
+    action: 1
+    min: 50
+    max: 100
+```
+
+You could even go crazy for no reason:
+
+```yaml
+events:
+  - metric: cpu_usage ** 2 - (mem_usage - 2000 + 1) * mem_usage + mem_usage * 0
+    action: 1
+    min: 50
+    max: 100
+```
 
 ## Logging
 
