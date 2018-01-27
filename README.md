@@ -1,12 +1,12 @@
+<p align="center">
+  <img src="https://github.com/structurely/ecs-autoscale/blob/master/.figures/logo.png"/>
+</p>
+
 # ecs-autoscale
 
 This is a Lambda function that allows you to automatically
 scale EC2 instances and services within an ECS cluster simultaneously based on 
 arbitrary metrics from sources not limited to CloudWatch.
-
-<p align="center">
-  <img src="https://github.com/structurely/ecs-autoscale/blob/master/.figures/logo.png"/>
-</p>
 
 ## Table of contents
 
