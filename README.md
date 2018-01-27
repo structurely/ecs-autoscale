@@ -164,7 +164,7 @@ Run the script `./bootstrap.sh`. This will
 - Create a Lambda function with the role attached and upload the deployment package.
 
 
-**Step 5: Create a trigger to execute your function**
+**Step 4: Create a trigger to execute your function**
 
 In this example we will create a simple CloudWatch that triggers our Lambda function to run
 every 5 minutes.
