@@ -67,6 +67,8 @@ services:
       # For more information on the metrics available, see below under "Metrics".
       third_party:
         - url: https://username:password@my_rabbitmq_host.com/api/queues/celery
+          method: GET  # Either GET or POST
+          payload: null  # Optional JSON paylaod to include with the request
           statistics:
             - name: messages_ready
               alias: queue_length
@@ -210,6 +212,8 @@ metric like this:
 ```yaml
 third_party:
   - url: https://username:password@my_rabbitmq_host.com/api/queues/celery
+    method: GET
+    payload: null
     statistics:
       - name: messages_ready
         alias: queue_length
@@ -231,8 +235,8 @@ events:
     max: 3
 ```
 
-In general, third party metrics are gathered by making an HTTP GET request to the
-url given. It is then assumed that the GET request will return a JSON object with
+In general, third party metrics are gathered by making an HTTP request to the
+url given. It is then assumed that the request will return a JSON object with
 a field name corresponding to the `name` of the metric. To retreive a nested field
 in the JSON object, you can use dot notation.
 
@@ -282,6 +286,17 @@ events:
     action: 1
     min: 50
     max: 100
+```
+
+In fact, metric arithmetic is interpreted directly as a Python statement, so you can even 
+use functions like `min` and `max`:
+
+```yaml
+events:
+  - metric: max([cpu_usage, mem_usage])
+    action: 1
+    min: 0.5
+    max: 1.0
 ```
 
 ## Logging

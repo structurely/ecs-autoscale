@@ -15,9 +15,11 @@ def _get_nested_field(data, field):
     return d
 
 
-def get_data(url=None, statistics=[]):
+def get_data(url=None, statistics=[], method="GET", payload=None):
+    assert method in ["GET", "POST"]
     out = {x["alias"]: None for x in statistics}
-    r = requests.get(url)
+    method = getattr(requests, method.lower())
+    r = method(url, json=payload)
     if r.status_code != 200:
         logger.error(
             "Error retreiving RabbitMQ statistics:\n"\

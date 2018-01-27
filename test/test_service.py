@@ -33,6 +33,8 @@ def test_metric_arithmetic1():
     assert service._get_metric("(foo - 1) * 10") == 10
     assert service._get_metric("foo * foo") == 4
     assert service._get_metric("foo ** 2") == 4
+    assert service._get_metric("min([foo, bar])") == 2
+    assert service._get_metric("max([foo, bar])") == 3
 
 
 def test_pretend_scale1():
