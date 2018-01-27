@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# This script bootstraps the setup process for the Lambda function:
+#
+#  1. Creates a Python 3 virtualenv `ecs-autoscale`.
+#  2. Installs the right packages and creates a symbolic link from ./python-lambda/packages/ 
+#     to the site-packages directory of the virtualenv.
+#  3. Creates an IAM policy with the right permissions for the Lambda function.
+#  4. Creates an IAM role for the Lambda function and attaches the policy.
+#  5. Creates a deployment package and then uploads it into the new Lambda function
+#     called `ecs-autoscale`.
+# ==============================================================================
 
 # Setup virtualenv.
 echo "Creating virtualenv ecs-autoscale"

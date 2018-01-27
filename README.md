@@ -4,6 +4,16 @@ This is a Lambda function that allows you to automatically
 scale EC2 instances and services within an ECS cluster simultaneously based on 
 arbitrary metrics from sources not limited to CloudWatch.
 
+## Table of contents
+
+- [Requirements](https://github.com/structurely/ecs-autoscale#requirements)
+- [Quick start](https://github.com/structurely/ecs-autoscale#quick-start)
+- [Scaling details](https://github.com/structurely/ecs-autoscale#scaling-details)
+- [Metrics](https://github.com/structurely/ecs-autoscale#metrics)
+  - [Sources](https://github.com/structurely/ecs-autoscale#sources)
+  - [Metric arithmetic](https://github.com/structurely/ecs-autoscale#metric-arithmetic)
+- [Logging](https://github.com/structurely/ecs-autoscale#logging)
+
 ## Requirements
 
 Make sure you have Python 3.5 or 3.6 and have installed the requirements
@@ -173,17 +183,15 @@ Next click "Configure details", give your rule a name, and then click "Create ru
 You're all set! After 5 minutes your function should run.
 
 
-## Details
+## Scaling details
 
-### Scaling
-
-#### Scaling individual services
+### Scaling individual services
 
 Individual services can be scaled up or down according to arbitrary metrics, as
 long as those metrics can be gathered through a simple HTTP request. For example,
 celery workers can be scaled according to the number of queued messages.
 
-#### Scaling up the cluster
+### Scaling up the cluster
 
 A cluster is triggered to scale up by one instance when both of the following two conditions are met:
 
@@ -191,7 +199,7 @@ A cluster is triggered to scale up by one instance when both of the following tw
 - the additional tasks for services that need to scale up cannot fit on the existing 
 instances with room left over for the predefined CPU and memory buffers.
 
-#### Scaling down the cluster
+### Scaling down the cluster
 
 A cluster is triggered to scale down by one instance when both of the following two conditions are met:
 
