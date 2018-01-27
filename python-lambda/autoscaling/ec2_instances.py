@@ -140,17 +140,10 @@ def remove_instance(cluster_data, cluster_def, asg_group_data, instance,
             instance["containerInstanceArn"].split("/")[1],
             cluster_data["clusterName"],
         )
-    logger.info(
-        "[Cluster: {}] Terminating instance {}"\
-        .format(cluster_data["clusterName"], instance["ec2InstanceId"])
-    )
-    if not is_test_run:
-        terminate_instance(
-            instance["ec2InstanceId"],
-        )
+        asg_group_data["DesiredCapacity"] -= 1
         asg_client.set_desired_capacity(
             AutoScalingGroupName=cluster_def["autoscale_group"],
-            DesiredCapacity=asg_group_data["DesiredCapacity"] - 1,
+            DesiredCapacity=asg_group_data["DesiredCapacity"],
         )
 
 
@@ -369,7 +362,8 @@ def log_instances(cluster_name, instances, status="active"):
             " => Reserved CPU units:  {}\n"\
             " => Available CPU units: {}\n"\
             " => Reserved memory:     {} MB\n"\
-            " => Available memory:    {} MB"\
+            " => Available memory:    {} MB\n"\
+            " => Running task count:  {}"\
             .format(
                 cluster_name,
                 instance["ec2InstanceId"],
@@ -378,6 +372,7 @@ def log_instances(cluster_name, instances, status="active"):
                 get_cpu_avail(instance),
                 get_mem_used(instance),
                 get_mem_avail(instance),
+                instance["runningTasksCount"],
             )
         )
 
@@ -407,6 +402,23 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
     )
     log_instances(cluster_data["clusterName"], active_instances)
     log_instances(cluster_data["clusterName"], draining_instances, status="draining")
+
+    # Terminate any empty draining instances.
+    for instance in draining_instances:
+        running_tasks = instance["runningTasksCount"]
+        if running_tasks:
+            continue
+        logger.info(
+            "[Cluster: {}] Terminating instance {}"\
+            .format(
+                cluster_data["clusterName"],
+                instance["ec2InstanceId"],
+            )
+        )
+        if not is_test_run:
+            terminate_instance(
+                instance["ec2InstanceId"],
+            )
 
     # Check if we should scale up.
     scaled = scale_up(
