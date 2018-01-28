@@ -22,7 +22,6 @@ arbitrary metrics from sources not limited to CloudWatch.
 
 Make sure you have Python 3.5 or 3.6 and have installed the requirements
 listed in `requirements.txt` (`pip3 install -r requirements.txt`). 
-Currently this has only been testing on OS X and Linux. Windows is not supported.
 
 ## Quick start
 
@@ -67,8 +66,8 @@ max: 4
 
 # Defines scaling for individual services.
 services:
-  # This should be the exact name of the service as in the ECS cluster.
-  worker:
+  # Here we specify scaling for the "worker" service.
+  worker:  # This should be the exact name of the service as on ECS.
     # Set to false to ignore service when autoscaling.
     enabled: true
 
@@ -102,11 +101,13 @@ services:
         min: null
         max: 3
 
+  # Here we specify scaling for the "backend" service.
   backend:
     enabled: true
     min: 1
     max: 3
     metric_sources:
+      # We only need metrics from CloudWatch this time.
       cloudwatch:
         - namespace: AWS/ECS
           metric_name: CPUUtilization
@@ -157,16 +158,17 @@ Run the script `./bootstrap.sh`. This will
 
 - Create a Python 3 virtualenv called `ecs-autoscale`.
 - Install the requirements to that virtualenv.
-- Create a symbolic link `python-lambda/packages` to the site-packages directory of that virtualenv.
+- Create a symbolic link `python-lambda/packages` to the site-packages directory of that virtualenv,
+  so that all of the dependencies can be bundled together in the deployment package.
 - Create an IAM policy that gives access to the resources the lambda function will need.
-- Create a role for the Lambda function to use, an attach the policy just created to that role.
+- Create a role for the Lambda function to use, and attach the policy to that role.
 - Build a deployment package.
-- Create a Lambda function with the role attached and upload the deployment package.
+- Create a Lambda function on AWS with the role attached and upload the deployment package.
 
 
 **Step 4: Create a trigger to execute your function**
 
-In this example we will create a simple CloudWatch that triggers our Lambda function to run
+In this example we will create a simple CloudWatch rule that triggers our Lambda function to run
 every 5 minutes.
 
 To do this, first login to the AWS Console and the go to the CloudWatch service. On the left side menu,

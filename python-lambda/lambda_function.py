@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-"""
-Lambda function to autoscale ECS clusters.
-"""
-
 from copy import deepcopy
 import datetime
 import inspect
@@ -50,7 +46,7 @@ def clusters():
 
 def lambda_handler(event, context):
     """
-    Main function which is invoked by AWS Lambda.
+    Main function which is imported and invoked by AWS Lambda.
     """
     logger.info("Got event {}".format(event))
 
