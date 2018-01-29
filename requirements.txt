@@ -5,3 +5,4 @@ virtualenv
 virtualenvwrapper
 pytest
 flake8
+requests
