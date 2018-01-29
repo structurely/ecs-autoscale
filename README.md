@@ -4,6 +4,8 @@
 
 # ecs-autoscale
 
+[![Build Status](https://travis-ci.org/structurely/ecs-autoscale.svg?branch=master)](https://travis-ci.org/structurely/ecs-autoscale)
+
 This is a Lambda function that allows you to automatically
 scale EC2 instances and services within an ECS cluster simultaneously based on 
 arbitrary metrics from sources not limited to CloudWatch.
