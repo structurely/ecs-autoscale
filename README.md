@@ -17,6 +17,7 @@ arbitrary metrics from sources not limited to CloudWatch.
   - [Sources](https://github.com/structurely/ecs-autoscale#sources)
   - [Metric arithmetic](https://github.com/structurely/ecs-autoscale#metric-arithmetic)
 - [Logging](https://github.com/structurely/ecs-autoscale#logging)
+- [Contributing](https://github.com/structurely/ecs-autoscale#contributing)
 
 ## Requirements
 
@@ -323,6 +324,11 @@ be set to
 - `info`
 - `warning`
 - `error`
+
+## Contributing
+
+This project is in its very early stages and we encourage developer contributions.
+Please read `CONTRIBUTING.md` before submitting a PR.
 
 ## Bugs
 
