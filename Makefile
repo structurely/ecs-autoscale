@@ -15,4 +15,11 @@ deploy: build push
 
 .PHONY: test
 test:
+	flake8 \
+			./python-lambda/lambda_function.py \
+			./python-lambda/autoscaling/cluster_definitions.py \
+			./python-lambda/autoscaling/ec2_instances.py \
+			./python-lambda/autoscaling/services.py \
+			./python-lambda/autoscaling/metric_sources/cloudwatch.py \
+			./python-lambda/autoscaling/metric_sources/third_party.py
 	pytest

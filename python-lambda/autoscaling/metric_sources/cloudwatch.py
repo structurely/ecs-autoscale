@@ -18,8 +18,8 @@ def _format_dimensions(dimensions):
     return out
 
 
-def get_data(metric_name="MemoryUtilization", dimensions=[], 
-                        statistics=[], namespace="AWS/ECS", period=300):
+def get_data(metric_name="MemoryUtilization", dimensions=[],
+             statistics=[], namespace="AWS/ECS", period=300):
     out = {x["alias"]: None for x in statistics}
     dimensions_ = _format_dimensions(dimensions)
     statistics_ = [x["name"] for x in statistics]
@@ -36,12 +36,12 @@ def get_data(metric_name="MemoryUtilization", dimensions=[],
     datapoints = res["Datapoints"]
     if not datapoints:
         logger.error(
-            "Error retreiving CloudWatch statistics, no datapoints found:\n"\
-            " => Namespace:  {}\n"\
-            " => MetricName: {}\n"\
-            " => Dimensions: {}\n"\
-            " => Period:     {}\n"\
-            " => Statistics: {}"\
+            "Error retreiving CloudWatch statistics, no datapoints found:\n"
+            " => Namespace:  {}\n"
+            " => MetricName: {}\n"
+            " => Dimensions: {}\n"
+            " => Period:     {}\n"
+            " => Statistics: {}"
             .format(
                 namespace, metric_name, dimensions_, period, statistics_,
             )

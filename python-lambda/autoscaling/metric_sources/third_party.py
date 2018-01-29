@@ -22,9 +22,9 @@ def get_data(url=None, statistics=[], method="GET", payload=None):
     r = method(url, json=payload)
     if r.status_code != 200:
         logger.error(
-            "Error retreiving RabbitMQ statistics:\n"\
-            " => Status code: {}\n"\
-            " => URL: {}\n"\
+            "Error retreiving RabbitMQ statistics:\n"
+            " => Status code: {}\n"
+            " => URL: {}\n"
             .format(r.status_code, url)
         )
     else:
