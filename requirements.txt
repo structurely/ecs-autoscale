@@ -4,3 +4,4 @@ PyYAML
 virtualenv
 virtualenvwrapper
 pytest
+flake8
