@@ -6,3 +6,5 @@ script:
   - sudo apt-get update
   - pip install -r requirements.txt
   - make test
+notifications:
+  email: false
