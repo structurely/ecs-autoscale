@@ -1,8 +1,13 @@
+test=test/
+
+.PHONY: clean
+clean:
+	@echo "Removing compiled Python objects"
+	@find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
+
 .PHONY: build
 build:
-	find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
-	@cd python-lambda && \
-			zip -r ../deployment.zip *
+	@cd lambda && zip -r ../deployment.zip *
 
 .PHONY: push
 push:
@@ -11,15 +16,17 @@ push:
 			--zip-file fileb://./deployment.zip
 
 .PHONY: deploy
-deploy: build push
+deploy: clean build push
+
+.PHONY: flake
+flake:
+	@echo "Running flake8"
+	@flake8 ./lambda/lambda_function.py ./lambda/autoscaling/
+
+.PHONY: run-test
+run-test:
+	@echo "Running pytest on $(test)"
+	@export PYTHONPATH=./lambda && pytest $(test)
 
 .PHONY: test
-test:
-	flake8 \
-			./python-lambda/lambda_function.py \
-			./python-lambda/autoscaling/cluster_definitions.py \
-			./python-lambda/autoscaling/ec2_instances.py \
-			./python-lambda/autoscaling/services.py \
-			./python-lambda/autoscaling/metric_sources/cloudwatch.py \
-			./python-lambda/autoscaling/metric_sources/third_party.py
-	pytest
+test: clean flake run-test

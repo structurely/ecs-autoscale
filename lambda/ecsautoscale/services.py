@@ -5,15 +5,15 @@ Handles scaling individual services within a cluster.
 import logging
 
 from . import ecs_client, LOG_LEVEL
-import autoscaling.metric_sources.third_party
-import autoscaling.metric_sources.cloudwatch
+import ecsautoscale.metric_sources.third_party
+import ecsautoscale.metric_sources.cloudwatch
 
 
 logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
 
 
-class Service(object):
+class Service:
     """
     An object for scaling arbitrary services.
     """
@@ -50,7 +50,7 @@ class Service(object):
         # Get metric data.
         self.state = state
         for source_name in self.metric_sources:
-            source = getattr(autoscaling.metric_sources, source_name)
+            source = getattr(ecsautoscale.metric_sources, source_name)
             for item in self.metric_sources[source_name]:
                 res = source.get_data(**item)
                 if res:

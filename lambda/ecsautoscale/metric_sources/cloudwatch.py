@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
-from autoscaling import cdw_client
+from ecsautoscale import cdw_client
 
 
 logger = logging.getLogger()

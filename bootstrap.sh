@@ -3,7 +3,7 @@
 # This script bootstraps the setup process for the Lambda function:
 #
 #  1. Creates a Python 3 virtualenv `ecs-autoscale`.
-#  2. Installs the right packages and creates a symbolic link from ./python-lambda/packages/ 
+#  2. Installs the right packages and creates a symbolic link from ./lambda/packages/ 
 #     to the site-packages directory of the virtualenv.
 #  3. Creates an IAM policy with the right permissions for the Lambda function.
 #  4. Creates an IAM role for the Lambda function and attaches the policy.
@@ -15,7 +15,7 @@
 echo "Creating virtualenv ecs-autoscale"
 which python3 | mkvirtualenv ecs-autoscale -p
 workon ecs-autoscale
-cd python-lambda
+cd lambda
 pip install -r requirements.txt
  -s `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` packages
 deactivate
@@ -49,7 +49,7 @@ aws iam attach-role-policy \
 # Build the deployment package.
 echo "Building Lambda deployment package"
 find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
-cd python-lambda
+cd lambda
 zip -r ../deployment.zip *
 cd -
 

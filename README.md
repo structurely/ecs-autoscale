@@ -45,7 +45,7 @@ we will need to make an HTTP GET request to the api of the queue.
 
 **Step 1: Define the cluster scaling requirements**
 
-We create a YAML file `./python-lambda/clusters/my_cluster.yml`.
+We create a YAML file `./lambda/clusters/my_cluster.yml`.
 
 > NOTE: The name of the YAML file sans extension must exactly match the name of the cluster on ECS.
 
@@ -148,7 +148,7 @@ with the url for RabbitMQ would become `url: https://%(USERNAME):%(PASSWORD)@my_
 To test the function locally,
 
 ```bash
-cd ./python-lambda/ && python3 lambda_function.py --test
+cd ./lambda/ && python3 lambda_function.py --test
 ```
 
 > NOTE: The `--test` switch ensures that no actual scaling events will occur,
@@ -161,7 +161,7 @@ Run the script `./bootstrap.sh`. This will
 
 - Create a Python 3 virtualenv called `ecs-autoscale`.
 - Install the requirements to that virtualenv.
-- Create a symbolic link `python-lambda/packages` to the site-packages directory of that virtualenv,
+- Create a symbolic link `lambda/packages` to the site-packages directory of that virtualenv,
   so that all of the dependencies can be bundled together in the deployment package.
 - Create an IAM policy that gives access to the resources the lambda function will need.
 - Create a role for the Lambda function to use, and attach the policy to that role.

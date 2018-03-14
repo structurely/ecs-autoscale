@@ -9,10 +9,10 @@ import sys
 base_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
 sys.path.append(os.path.join(base_path, "./packages/"))
 
-from autoscaling import asg_client, ecs_client, LOG_LEVEL  # noqa: E402
-from autoscaling.cluster_definitions import load_cluster   # noqa: E402
-from autoscaling.ec2_instances import scale_ec2_instances  # noqa: E402
-from autoscaling.services import gather_services, Service  # noqa: E402
+from ecsautoscale import asg_client, ecs_client, LOG_LEVEL  # noqa: E402
+from ecsautoscale.cluster_definitions import load_cluster   # noqa: E402
+from ecsautoscale.ec2_instances import scale_ec2_instances  # noqa: E402
+from ecsautoscale.services import gather_services, Service  # noqa: E402
 
 
 logger = logging.getLogger()

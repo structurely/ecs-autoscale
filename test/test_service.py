@@ -1,11 +1,4 @@
-import inspect
-import os
-import sys
-
-base_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-sys.path.append(os.path.join(base_path, "../python-lambda/"))
-
-from autoscaling.services import Service
+from ecsautoscale.services import Service
 
 
 def init_service():
