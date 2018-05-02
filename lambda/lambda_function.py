@@ -44,6 +44,9 @@ def clusters():
 def lambda_handler(event, context):
     """
     Main function which is imported and invoked by AWS Lambda.
+
+    The 'event' and 'context' are given by AWS, but we currently don't do
+    anything with them.
     """
     logger.info("Got event {}".format(event))
 

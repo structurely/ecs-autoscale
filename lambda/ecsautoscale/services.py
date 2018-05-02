@@ -16,22 +16,33 @@ logger.setLevel(LOG_LEVEL)
 class Service:
     """
     An object for scaling arbitrary services.
+
+    Args:
+        cluster_name (str): name of the cluster on ECS.
+        service_name (str): name of the service on ECS.
+        task_name (str): name of the task on ECS.
+        task_count (int): current number of tasks running.
+        events (list of dict): list of trigger events.
+        metric_sources (dict): details of where to pull metrics from.
+        min_tasks (int): desired minimum number of tasks.
+        max_tasks (int): desired maximum number of tasks.
+        state (dict): current state of metrics.
     """
 
     def __init__(self, cluster_name, service_name, task_name, task_count,
-                 events=[],
-                 metric_sources={},
+                 events=None,
+                 metric_sources=None,
                  min_tasks=0,
                  max_tasks=5,
-                 state={}):
+                 state=None):
         self.cluster_name = cluster_name
         self.service_name = service_name
         self.task_count = task_count
         self.task_name = task_name
         self.min_tasks = min_tasks
         self.max_tasks = max_tasks
-        self.events = events
-        self.metric_sources = metric_sources
+        self.events = events or []
+        self.metric_sources = metric_sources or {}
 
         if task_name:
             task_definition_data = \
@@ -48,7 +59,7 @@ class Service:
             self.task_mem = 0
 
         # Get metric data.
-        self.state = state
+        self.state = state or {}
         for source_name in self.metric_sources:
             source = getattr(ecsautoscale.metric_sources, source_name)
             for item in self.metric_sources[source_name]:
@@ -81,6 +92,9 @@ class Service:
         return eval(metric_str)
 
     def pretend_scale(self):
+        """
+        Check trigger events in order to determine what needs to scale.
+        """
         if self.task_count < self.min_tasks:
             self.task_diff = self.min_tasks - self.task_count
             self.desired_tasks = self.min_tasks
@@ -138,6 +152,9 @@ class Service:
         return False
 
     def scale(self, is_test_run=False):
+        """
+        Scale service.
+        """
         if self.desired_tasks is not None and \
                 self.task_diff != 0 and \
                 self.service_name is not None:

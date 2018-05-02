@@ -18,9 +18,26 @@ def _format_dimensions(dimensions):
     return out
 
 
-def get_data(metric_name="MemoryUtilization", dimensions=[],
-             statistics=[], namespace="AWS/ECS", period=300):
+def get_data(metric_name="MemoryUtilization", dimensions=None,
+             statistics=None, namespace="AWS/ECS", period=300):
+    """
+    Retreive metrics from AWS CloudWatch.
+
+    Args:
+        metric_name (str): the name of the metric.
+        dimensions (list of str): AWS metric dimension names.
+        statistics (list of str): AWS metric statistic names.
+        namespace (str): AWS metric namespace name.
+        period (int): AWS metric period.
+
+    Returns:
+        dict: the desired metrics.
+    """
+    statistics = statistics or []
+    dimensions = dimensions or []
+
     out = {x["alias"]: None for x in statistics}
+
     dimensions_ = _format_dimensions(dimensions)
     statistics_ = [x["name"] for x in statistics]
     now = datetime.now()
@@ -55,4 +72,5 @@ def get_data(metric_name="MemoryUtilization", dimensions=[],
             log_messages.append(" => {}: {}".format(key, val))
         if out:
             logger.debug("\n".join(log_messages))
+
     return out
