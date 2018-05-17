@@ -13,11 +13,12 @@
 
 # Setup virtualenv.
 echo "Creating virtualenv ecs-autoscale"
+source /usr/local/bin/virtualenvwrapper.sh
 which python3 | mkvirtualenv ecs-autoscale -p
 workon ecs-autoscale
 cd lambda
 pip install -r requirements.txt
- -s `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` packages
+ln -s `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` packages
 deactivate
 cd -
 
