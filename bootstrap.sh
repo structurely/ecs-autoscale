@@ -11,18 +11,18 @@
 #     called `ecs-autoscale`.
 # ==============================================================================
 
-# Setup virtualenv.
 echo "Creating virtualenv ecs-autoscale"
 source /usr/local/bin/virtualenvwrapper.sh
 which python3 | mkvirtualenv ecs-autoscale -p
 workon ecs-autoscale
+
+echo "Installing requirements"
 cd lambda
 pip install -r requirements.txt
 ln -s `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` packages
 deactivate
 cd -
 
-# Create policy and get resulting policy arn.
 echo "Creating IAM policy called ecs-autoscale-policy"
 policy_arn=$(aws iam create-policy \
     --policy-name ecs-autoscale-policy \
@@ -32,7 +32,6 @@ policy_arn=$(aws iam create-policy \
 
 echo "Created policy $policy_arn"
 
-# Create execution role.
 echo "Creating IAM role called ecs-autoscale-role"
 role_arn=$(aws iam create-role \
     --role-name ecs-autoscale-role \
@@ -42,7 +41,7 @@ role_arn=$(aws iam create-role \
 
 echo "Created role $role_arn"
 
-# Attach policy to role.
+echo "Attaching policy to role"
 aws iam attach-role-policy \
     --role-name ecs-autoscale-role \
     --policy-arn $policy_arn
@@ -54,6 +53,9 @@ cd lambda
 zip -r ../deployment.zip *
 cd -
 
+echo "Waiting for role to be registered"
+sleep 5
+
 # Create lambda function.
 echo "Creating Lambda function ecs-autoscale"
 aws lambda create-function \
@@ -63,5 +65,3 @@ aws lambda create-function \
     --runtime "python3.6" \
     --timeout 10 \
     --memory-size 128
-
-echo "Success!"
