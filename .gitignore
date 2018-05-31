@@ -109,3 +109,5 @@ push_cluster_defs.sh
 
 # testing
 test.sh
+
+.pytest_cache/

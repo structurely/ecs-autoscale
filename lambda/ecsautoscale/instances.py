@@ -1,42 +1,36 @@
-"""
-Handles scaling of EC2 instances within an ECS cluster.
-"""
+"""Handles scaling of EC2 instances within an ECS cluster."""
 
 import logging
+from typing import List, Tuple
 
 from . import ecs_client, asg_client
+from .exceptions import ClusterARNError, ASGGroupError, MissingResourceValueError
+from .services import Service
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def get_cluster_arn(cluster_name, cluster_list):
+def get_cluster_arn(cluster_name: str, cluster_list: List[str]) -> str:
+    """Find the ARN corresponding to a cluster name."""
     for arn in cluster_list:
         name = arn.split("/")[1]
         if name == cluster_name:
             return arn
-    else:
-        logger.error(
-            "Could not find cluster arn for cluster {}".format(cluster_name)
-        )
+    raise ClusterARNError(cluster_name)
 
 
-def get_asg_group_data(asg_group_name, asg_data):
+def get_asg_group_data(asg_group_name: str, asg_data: dict) -> dict:
+    """Retrieve the autoscaling group data."""
     for item in asg_data["AutoScalingGroups"]:
         if item["AutoScalingGroupName"] == asg_group_name:
             return item
-    else:
-        logger.error(
-            "Could not find autoscaling group with name {}"
-            .format(asg_group_name)
-        )
+    raise ASGGroupError(asg_group_name)
 
 
-def get_empty_instances(active_container_described):
-    """
-    Returns a object of empty instances in cluster.
-    """
+def get_empty_instances(active_container_described: dict) -> dict:
+    """Returns an object of empty instances in cluster."""
     empty_instances = {}
 
     for inst in active_container_described['containerInstances']:
@@ -48,10 +42,8 @@ def get_empty_instances(active_container_described):
     return empty_instances
 
 
-def get_draining_instances(draining_container_described):
-    """
-    Returns an object of draining instances in cluster.
-    """
+def get_draining_instances(draining_container_described: dict) -> dict:
+    """Returns an object of draining instances in cluster."""
     draining_instances = {}
 
     for inst in draining_container_described['containerInstances']:
@@ -62,7 +54,8 @@ def get_draining_instances(draining_container_described):
     return draining_instances
 
 
-def retrieve_cluster_data(cluster_arn, cluster_name):
+def retrieve_cluster_data(cluster_arn: str, cluster_name: str) -> dict:
+    """Retrieve a dictionary of cluster data."""
     active_container_instances = ecs_client.list_container_instances(
         cluster=cluster_arn,
         status='ACTIVE'
@@ -76,12 +69,8 @@ def retrieve_cluster_data(cluster_arn, cluster_name):
         )
     else:
         logger.warning(
-            "[Cluster: {}] No active instances in cluster"
-            .format(cluster_name)
-        )
-        active_container_described = {
-            "containerInstances": []
-        }
+            f"[Cluster: {cluster_name}] No active instances in cluster")
+        active_container_described = {"containerInstances": []}
 
     draining_container_instances = ecs_client.list_container_instances(
         cluster=cluster_arn,
@@ -116,10 +105,12 @@ def retrieve_cluster_data(cluster_arn, cluster_name):
     return data
 
 
-def drain_instance(cluster_data, cluster_def, asg_group_data, instance,
-                   is_test_run=False):
+def drain_instance(cluster_data: dict,
+                   instance: dict,
+                   is_test_run: bool = False) -> None:
+    """Drain an instance."""
     logger.info(
-        "[Cluster: {}] Draining instance {}"
+        "[Cluster: {:s}] Draining instance {:s}"
         .format(cluster_data["cluster_name"], instance["ec2InstanceId"])
     )
     if not is_test_run:
@@ -127,19 +118,16 @@ def drain_instance(cluster_data, cluster_def, asg_group_data, instance,
         ecs_client.update_container_instances_state(
             cluster=cluster_data["cluster_name"],
             containerInstances=[container_instance_id],
-            status="DRAINING",
-        )
+            status="DRAINING")
 
 
-def terminate_instance(cluster_name, asg_group_data, ec2_instance_id,
-                       is_test_run=False):
+def terminate_instance(cluster_name: str,
+                       asg_group_data: dict,
+                       ec2_instance_id: str,
+                       is_test_run: bool = False) -> None:
+    """Completely terminate an instance."""
     logger.info(
-        "[Cluster: {}] Terminating instance {}"
-        .format(
-            cluster_name,
-            ec2_instance_id,
-        )
-    )
+        f"[Cluster: {cluster_name}] Terminating instance {ec2_instance_id}")
     if not is_test_run:
         asg_client.terminate_instance_in_auto_scaling_group(
             InstanceId=ec2_instance_id,
@@ -148,43 +136,43 @@ def terminate_instance(cluster_name, asg_group_data, ec2_instance_id,
         asg_group_data["DesiredCapacity"] -= 1
 
 
-def get_cpu_avail(instance):
+def get_cpu_avail(instance: dict) -> int:
     for item in instance["remainingResources"]:
         if item["name"] == "CPU":
             return item["integerValue"]
-    return None
+    raise MissingResourceValueError("CPU available")
 
 
-def get_mem_avail(instance):
+def get_mem_avail(instance: dict) -> int:
     for item in instance["remainingResources"]:
         if item["name"] == "MEMORY":
             return item["integerValue"]
-    return None
+    raise MissingResourceValueError("memory available")
 
 
-def get_cpu_used(instance):
+def get_cpu_used(instance: dict) -> int:
     for item in instance["registeredResources"]:
         if item["name"] == "CPU":
             cpu_registered = item["integerValue"]
             break
     else:
-        logger.error("No value for registered CPU found")
-        return None
+        raise MissingResourceValueError("CPU used")
     return cpu_registered - get_cpu_avail(instance)
 
 
-def get_mem_used(instance):
+def get_mem_used(instance: dict) -> int:
     for item in instance["registeredResources"]:
         if item["name"] == "MEMORY":
             mem_registered = item["integerValue"]
             break
     else:
-        logger.error("No value for registered MEMORY found")
-        return None
+        raise MissingResourceValueError("memory used")
     return mem_registered - get_mem_avail(instance)
 
 
-def place_task(instance_tuples, cpu, mem):
+def place_task(instance_tuples: List[Tuple[int, int]],
+               cpu: int,
+               mem: int) -> Tuple[List[Tuple[int, int]], bool]:
     for i, tup in enumerate(instance_tuples):
         if tup[0] > cpu and tup[1] > mem:
             instance_tuples[i] = (tup[0] - cpu, tup[1] - mem)
@@ -192,8 +180,11 @@ def place_task(instance_tuples, cpu, mem):
     return instance_tuples, False
 
 
-def scale_up(cluster_data, cluster_def, asg_group_data, services,
-             is_test_run=False):
+def scale_up(cluster_data: dict,
+             cluster_def: dict,
+             asg_group_data: dict,
+             services: List[Service],
+             is_test_run: bool = False) -> bool:
     """
     Check if cluster should scale up.
 
@@ -201,12 +192,12 @@ def scale_up(cluster_data, cluster_def, asg_group_data, services,
     existing instances.
     """
     logger.info(
-        "[Cluster: {}] Checking if we should scale up"
+        "[Cluster: {:s}] Checking if we should scale up"
         .format(cluster_data["cluster_name"])
     )
     if asg_group_data["DesiredCapacity"] >= asg_group_data["MaxSize"]:
         logger.warning(
-            "[Cluster: {}] Max capacity already reached, cannot scale up"
+            "[Cluster: {:s}] Max capacity already reached, cannot scale up"
             .format(cluster_data["cluster_name"])
         )
         return False
@@ -228,7 +219,7 @@ def scale_up(cluster_data, cluster_def, asg_group_data, services,
             # If we can't place the task, need to scale up.
             desired_capacity = asg_group_data["DesiredCapacity"] + 1
             logger.info(
-                "[Cluster: {}] Scaling cluster up to {} instances"
+                "[Cluster: {:s}] Scaling cluster up to {} instances"
                 .format(cluster_data["cluster_name"], desired_capacity)
             )
             if not is_test_run:
@@ -239,21 +230,23 @@ def scale_up(cluster_data, cluster_def, asg_group_data, services,
             return True
 
     logger.info(
-        "[Cluster: {}] Cluster is sufficiently sized, not scaling up"
+        "[Cluster: {:s}] Cluster is sufficiently sized, not scaling up"
         .format(cluster_data["cluster_name"])
     )
     return False
 
 
-def get_min_cpu_instance(instances):
-    return min(instances, key=lambda x: get_cpu_used(x))
+def get_min_cpu_instance(instances: List[dict]) -> dict:
+    return min(instances, key=get_cpu_used)
 
 
-def get_min_mem_instance(instances):
-    return min(instances, key=lambda x: get_mem_used(x))
+def get_min_mem_instance(instances: List[dict]) -> dict:
+    return min(instances, key=get_mem_used)
 
 
-def allocate_instances(desired_cpu, desired_mem, instance_tuples, services):
+def allocate_instances(desired_cpu: int,
+                       desired_mem: int,
+                       instance_tuples: List[Tuple[int, int]]) -> Tuple[List[Tuple[int, int]], bool]:
     for i, item in enumerate(instance_tuples):
         cpu, mem = item
         if desired_cpu < cpu and desired_mem < mem:
@@ -262,7 +255,9 @@ def allocate_instances(desired_cpu, desired_mem, instance_tuples, services):
     return instance_tuples, False
 
 
-def place_instance(instance, instances, services):
+def place_instance(instance: dict,
+                   instances: List[dict],
+                   services: List[Service]) -> bool:
     """
     Check if we can fit the memory and cpu reserved by this instance onto one
     of the other instances with enough room left over for any services that
@@ -270,7 +265,6 @@ def place_instance(instance, instances, services):
     """
     other_instances = [(get_cpu_avail(x), get_mem_avail(x)) for x in instances
                        if x["ec2InstanceId"] != instance["ec2InstanceId"]]
-    logger.debug(other_instances)
     if not other_instances:
         return False
 
@@ -281,9 +275,7 @@ def place_instance(instance, instances, services):
     other_instances, allocated = allocate_instances(
         cpu_needed,
         mem_needed,
-        other_instances,
-        services,
-    )
+        other_instances)
     if not allocated:
         return False
 
@@ -307,8 +299,10 @@ def place_instance(instance, instances, services):
     return True
 
 
-def scale_down(cluster_data, cluster_def, asg_group_data, services,
-               is_test_run=False):
+def scale_down(cluster_data: dict,
+               asg_group_data: dict,
+               services: List[Service],
+               is_test_run: bool = False) -> bool:
     """
     Check if cluster should scale down.
 
@@ -317,12 +311,12 @@ def scale_down(cluster_data, cluster_def, asg_group_data, services,
     can fit on another instance and when `desired_capacity` > `min_capacity`.
     """
     logger.info(
-        "[Cluster: {}] Checking if we can scale down"
+        "[Cluster: {:s}] Checking if we can scale down"
         .format(cluster_data["cluster_name"])
     )
     if asg_group_data["DesiredCapacity"] <= asg_group_data["MinSize"]:
         logger.warning(
-            "[Cluster: {}] Min capacity already reached, cannot scale down"
+            "[Cluster: {:s}] Min capacity already reached, cannot scale down"
             .format(cluster_data["cluster_name"])
         )
         return False
@@ -335,10 +329,7 @@ def scale_down(cluster_data, cluster_def, asg_group_data, services,
     min_mem_instance = get_min_mem_instance(instances)
     if place_instance(min_mem_instance, instances, services):
         # Scale down this instance.
-        drain_instance(
-            cluster_data, cluster_def, asg_group_data, min_mem_instance,
-            is_test_run=is_test_run,
-        )
+        drain_instance(cluster_data, min_mem_instance, is_test_run=is_test_run)
         return True
 
     # Otherwise see if we can move all of the tasks from the instance with the
@@ -346,28 +337,27 @@ def scale_down(cluster_data, cluster_def, asg_group_data, services,
     min_cpu_instance = get_min_cpu_instance(instances)
     if place_instance(min_cpu_instance, instances, services):
         # Scale down this instance.
-        drain_instance(
-            cluster_data, cluster_def, asg_group_data, min_cpu_instance,
-            is_test_run=is_test_run,
-        )
+        drain_instance(cluster_data, min_cpu_instance, is_test_run=is_test_run)
         return True
 
     logger.info(
-        "[Cluster: {}] Scale down conditions not met, doing nothing"
+        "[Cluster: {:s}] Scale down conditions not met, doing nothing"
         .format(cluster_data["cluster_name"])
     )
     return False
 
 
-def log_instances(cluster_name, instances, status="active"):
+def log_instances(cluster_name: str,
+                  instances: List[dict],
+                  status: str = "active") -> None:
     for instance in instances:
         logger.info(
-            "[Cluster: {}] Instance {} ({}):\n"
-            " => Reserved CPU units:  {}\n"
-            " => Available CPU units: {}\n"
-            " => Reserved memory:     {} MB\n"
-            " => Available memory:    {} MB\n"
-            " => Running task count:  {}"
+            "[Cluster: {:s}] Instance {:s} ({:s}):\n"
+            " => Reserved CPU units:  {:d}\n"
+            " => Available CPU units: {:d}\n"
+            " => Reserved memory:     {:d} MB\n"
+            " => Available memory:    {:d} MB\n"
+            " => Running task count:  {:d}"
             .format(
                 cluster_name,
                 instance["ec2InstanceId"],
@@ -381,19 +371,22 @@ def log_instances(cluster_name, instances, status="active"):
         )
 
 
-def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
-                         is_test_run=False):
+def _scale_ec2_instances(cluster_data: dict,
+                         cluster_def: dict,
+                         asg_group_data: dict,
+                         services: List[Service],
+                         is_test_run: bool = False) -> bool:
     active_instances = \
         cluster_data["active_container_described"]["containerInstances"]
     draining_instances = \
         cluster_data["draining_container_described"]["containerInstances"]
     logger.info(
-        "[Cluster: {}] Current state:\n"
-        " => Active instances:   {}\n"
-        " => Draining instances: {}\n"
-        " => Desired capacity:   {}\n"
-        " => Minimum capacity:   {}\n"
-        " => Maximum capacity:   {}"
+        "[Cluster: {:s}] Current state:\n"
+        " => Active instances:   {:d}\n"
+        " => Draining instances: {:d}\n"
+        " => Desired capacity:   {:d}\n"
+        " => Minimum capacity:   {:d}\n"
+        " => Maximum capacity:   {:d}"
         .format(
             cluster_data["cluster_name"],
             len(active_instances),
@@ -433,7 +426,6 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
     # If we didn't scale up, check if we should scale down.
     scaled = scale_down(
         cluster_data,
-        cluster_def,
         asg_group_data,
         services,
         is_test_run=is_test_run,
@@ -441,9 +433,12 @@ def _scale_ec2_instances(cluster_data, cluster_def, asg_group_data, services,
     return scaled
 
 
-def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list,
-                        services,
-                        is_test_run=False):
+def scale_ec2_instances(cluster_name: str,
+                        cluster_def: dict,
+                        asg_data: dict,
+                        cluster_list: List[str],
+                        services: List[Service],
+                        is_test_run: bool = False) -> int:
     """
     Scale EC2 instances in a cluster. Returns -1 if the maximum capacity of the
     cluster is 0, otherwise returns 1 if a scaling event occured, and 0 if not.
@@ -465,11 +460,11 @@ def scale_ec2_instances(cluster_name, cluster_def, asg_data, cluster_list,
         if min_instances != asg_group_data["MinSize"] or \
                 max_instances != asg_group_data["MaxSize"]:
             logger.warning(
-                "[Cluster: {}] Mismatched min or max size of cluster with "
+                "[Cluster: {:s}] Mismatched min or max size of cluster with "
                 "autoscaling group data. Using settings from cluster"
                 "definition:\n"
-                " => Minimum: {}\n"
-                " => Maximum: {}"
+                " => Minimum: {:d}\n"
+                " => Maximum: {:d}"
                 .format(cluster_name, min_instances, max_instances)
             )
             if not is_test_run:

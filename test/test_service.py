@@ -1,17 +1,13 @@
+"""Test the ecsautoscale.services.Service class."""
+
+from typing import List
+
+import pytest
+
 from ecsautoscale.services import Service
 
 
-def init_service():
-    return Service("test_cluster", None, None, 1)
-
-
-def test_metric_arithmetic1():
-    service = init_service()
-    service.state = {
-        "foo": 2,
-        "bar": 3,
-        "baz": 4,
-    }
+def test_metric_arithmetic1(service):
     assert service._get_metric("foo * bar * baz") == 24
     assert service._get_metric("foo") == 2
     assert service._get_metric(" foo") == 2
@@ -30,62 +26,47 @@ def test_metric_arithmetic1():
     assert service._get_metric("max([foo, bar])") == 3
 
 
-def test_pretend_scale1():
-    service = init_service()
-    service.state = {
-        "foo": 2,
-        "bar": 3,
-        "baz": 4,
-    }
-    service.events = [
-        {
+cases = [
+    (
+        [{
             "metric": "foo",
             "action": 1,
             "min": 1,
             "max": None,
-        }
-    ]
-    service.pretend_scale()
-    assert service.desired_tasks == 2
-    assert service.task_diff == 1
-
-
-def test_pretend_scale2():
-    service = init_service()
-    service.state = {
-        "foo": 2,
-        "bar": 3,
-        "baz": 4,
-    }
-    service.events = [
-        {
+        }],
+        None, 2, 1
+    ),
+    (
+        [{
             "metric": "foo",
             "action": 2,
             "min": 1,
             "max": None,
-        }
-    ]
-    service.pretend_scale()
-    assert service.desired_tasks == 3
-    assert service.task_diff == 2
-
-
-def test_pretend_scale3():
-    service = init_service()
-    service.state = {
-        "foo": 2,
-        "bar": 3,
-        "baz": 4,
-    }
-    service.max_tasks = 3
-    service.events = [
-        {
+        }],
+        None, 3, 2
+    ),
+    (
+        [{
             "metric": "foo",
             "action": 3,
             "min": 1,
             "max": None,
-        }
-    ]
+        }],
+        3, 3, 2
+    )
+]
+
+
+@pytest.mark.parametrize(
+    "events, max_tasks, desired_tasks_check, task_diff_check", cases)
+def test_pretend_scale(service: Service,
+                       events: List[dict],
+                       max_tasks: int,
+                       desired_tasks_check: int,
+                       task_diff_check: int) -> None:
+    if max_tasks is not None:
+        service.max_tasks = max_tasks
+    service.events = events
     service.pretend_scale()
-    assert service.desired_tasks == 3
-    assert service.task_diff == 2
+    assert service.desired_tasks == desired_tasks_check
+    assert service.task_diff == task_diff_check
