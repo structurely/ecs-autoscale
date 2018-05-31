@@ -4,6 +4,6 @@ PyYAML
 virtualenv
 virtualenvwrapper
 pytest
-flake8
-pep8-naming
+mypy
+pylint
 requests
