@@ -364,7 +364,7 @@ be set to
 ## Contributing
 
 This project is in its very early stages and we encourage developer contributions.
-Please read `CONTRIBUTING.md` before submitting a PR.
+Please read [CONTRIBUTING.md](https://github.com/structurely/ecs-autoscale/blob/master/CONTRIBUTING.md) before submitting a PR.
 
 ## Bugs
 
