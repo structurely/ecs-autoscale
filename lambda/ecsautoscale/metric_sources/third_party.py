@@ -1,57 +1,72 @@
+"""Interface to metric from third-party sources."""
+
+from typing import List
 import logging
 
 import requests
+
+from ecsautoscale.exceptions import ThirdPartyError
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def _get_nested_field(data, field):
-    d = data
+def _get_nested_field(data: dict, field: str):
+    subdata = data
     levels = field.split(".")
-    for l in levels:
-        d = d[l]
-    return d
+    for level in levels:
+        subdata = subdata[level]
+    return subdata
 
 
-def get_data(url=None, statistics=None, method="GET", payload=None):
+def get_data(url: str = None,
+             statistics: List[dict] = None,
+             method: str = "GET",
+             payload: dict = None) -> dict:
     """
     Retreive metrics from a URL with an HTTP POST or GET request.
 
-    Args:
-        url (str): the URL of the resource.
-        statistics (list of str): a list of metric names to grab.
-        method (str): the HTTP method.
-        payload (dict): an arbitrary payload to include in the request.
+    Parameters
+    ----------
+    url : str
+        The URL of the resource.
 
-    Returns:
-        dict: the desired metrics.
+    statistics : List[dict]
+        A list of metric names to grab.
+
+    method : str
+        The HTTP method.
+
+    payload : dict
+        An arbitrary payload to include in the request.
+
+    Returns
+    -------
+    dict
+        The desired metrics.
+
     """
+    # pylint: disable=not-callable
     assert method in ["GET", "POST"]
 
     statistics = statistics or []
 
     out = {x["alias"]: None for x in statistics}
 
-    method = getattr(requests, method.lower())
-    r = method(url, json=payload)
-    if r.status_code != 200:
-        logger.error(
-            "Error retreiving metrics:\n"
-            " => Status code: {}\n"
-            " => URL: {}\n"
-            .format(r.status_code, url)
-        )
-    else:
-        data = r.json()
-        log_messages = ["Retreived the following metrics:"]
-        for x in statistics:
-            key = x["alias"]
-            val = _get_nested_field(data, x["name"])
-            out[key] = val
-            log_messages.append(" => {}: {}".format(key, val))
-        if out:
-            logger.debug("\n".join(log_messages))
+    method_ = getattr(requests, method.lower())
+    resp = method_(url, json=payload)
+    if resp.status_code != 200:
+        raise ThirdPartyError(resp.status_code, url)
+
+    data = resp.json()
+    log_messages = ["Retreived the following metrics:"]
+    for stat in statistics:
+        key = stat["alias"]
+        val = _get_nested_field(data, stat["name"])
+        out[key] = val
+        log_messages.append(" => {}: {}".format(key, val))
+    if out:
+        logger.debug("\n".join(log_messages))
 
     return out

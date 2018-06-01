@@ -1,2 +1,0 @@
-PyYAML==3.12
-requests

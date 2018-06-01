@@ -1,32 +1,53 @@
-test=test/
+test = test/
+repo = epwalsh/ecs-autoscale
+cmd = ls
 
-.PHONY: clean
-clean:
-	@echo "Removing compiled Python objects"
-	@find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf
 
-.PHONY: build
-build:
-	@cd lambda && zip -r ../deployment.zip *
+.PHONY : docker-build
+docker-build :
+	docker build -t $(repo) .
 
-.PHONY: push
-push:
+.PHONY : docker-run
+docker-run :
+	docker run --env-file=./access.txt --rm $(repo) $(cmd)
+
+.PHONY : build
+build :
+	@echo "Creating deployment package"
+	@cd lambda && zip -r ../deployment.zip * &> /dev/null
+	@ls -lh | grep *.zip
+
+.PHONY : push
+push :
 	aws lambda update-function-code \
 			--function-name "ecs-autoscale" \
 			--zip-file fileb://./deployment.zip
 
-.PHONY: deploy
-deploy: clean build push
+.PHONY : deploy
+deploy : build push
 
-.PHONY: flake
-flake:
-	@echo "Running flake8"
-	@flake8 ./lambda/lambda_function.py ./lambda/autoscaling/
+.PHONY : typecheck
+typecheck :
+	-@mypy lambda --ignore-missing-imports
 
-.PHONY: run-test
-run-test:
-	@echo "Running pytest on $(test)"
-	@export PYTHONPATH=./lambda && pytest $(test)
+.PHONY : lint
+lint :
+	@echo "Lint (pylint):"
+	-@pylint --rcfile=./.pylintrc -f colorized lambda
 
-.PHONY: test
-test: clean flake run-test
+.PHONY : unit-test
+unit-test :
+	@echo "Unit tests (pytest):"
+	@export PYTHONPATH=./lambda && pytest --color=yes $(test)
+
+.PHONY : test
+test : typecheck lint unit-test
+
+.PHONY : test-run
+test-run :
+	@cd lambda && python lambda_function.py --test
+
+.PHONY : clean
+clean :
+	@echo "Removing compiled Python objects"
+	@find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf

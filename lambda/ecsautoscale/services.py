@@ -3,10 +3,11 @@ Handles scaling individual services within a cluster.
 """
 
 import logging
+from typing import List
 
-from . import ecs_client, LOG_LEVEL
 import ecsautoscale.metric_sources.third_party
 import ecsautoscale.metric_sources.cloudwatch
+from . import ecs_client, LOG_LEVEL
 
 
 logger = logging.getLogger()
@@ -17,24 +18,46 @@ class Service:
     """
     An object for scaling arbitrary services.
 
-    Args:
-        cluster_name (str): name of the cluster on ECS.
-        service_name (str): name of the service on ECS.
-        task_name (str): name of the task on ECS.
-        task_count (int): current number of tasks running.
-        events (list of dict): list of trigger events.
-        metric_sources (dict): details of where to pull metrics from.
-        min_tasks (int): desired minimum number of tasks.
-        max_tasks (int): desired maximum number of tasks.
-        state (dict): current state of metrics.
+    Parameters
+    ----------
+    cluster_name : str
+        Name of the cluster on ECS.
+
+    service_name : str
+        The name of the service on ECS.
+
+    task_name : str
+        The name of the task on ECS.
+
+    task_count : int
+        The current number of tasks running.
+
+    events : List[dict]
+        A list of trigger events.
+
+    metric_sources : dict
+        The details of where to pull metrics from.
+
+    min_tasks : int
+        The desired minimum number of tasks.
+
+    max_tasks : int
+        The desired maximum number of tasks.
+
+    state : dict
+        The current state of metrics.
+
     """
 
-    def __init__(self, cluster_name, service_name, task_name, task_count,
-                 events=None,
-                 metric_sources=None,
-                 min_tasks=0,
-                 max_tasks=5,
-                 state=None):
+    def __init__(self, cluster_name: str,
+                 service_name: str,
+                 task_name: str,
+                 task_count: int,
+                 events: List[dict] = None,
+                 metric_sources: dict = None,
+                 min_tasks: int = 0,
+                 max_tasks: int = 5,
+                 state: dict = None) -> None:
         self.cluster_name = cluster_name
         self.service_name = service_name
         self.task_count = task_count
@@ -67,15 +90,15 @@ class Service:
                 if res:
                     self.state.update(res)
 
-        self.desired_tasks = None
-        self.task_diff = None
+        self.desired_tasks = 0
+        self.task_diff = 0
 
         if self.service_name is not None:
             logger.info(
-                "[Cluster: {}, Service: {}] Current state:\n"
-                " => Running count:    {}\n"
-                " => Minimum capacity: {}\n"
-                " => Maximum capacity: {}"
+                "[Cluster: {:s}, Service: {:s}] Current state:\n"
+                " => Running count:    {:d}\n"
+                " => Minimum capacity: {:d}\n"
+                " => Maximum capacity: {:d}"
                 .format(
                     self.cluster_name,
                     self.service_name,
@@ -85,13 +108,13 @@ class Service:
                 )
             )
 
-    def _get_metric(self, metric_str):
+    def _get_metric(self, metric_str: str) -> float:
         for metric_name in self.state:
             metric_str = metric_str.replace(metric_name,
                                             str(self.state[metric_name]))
         return eval(metric_str)
 
-    def pretend_scale(self):
+    def pretend_scale(self) -> bool:
         """
         Check trigger events in order to determine what needs to scale.
         """
@@ -131,27 +154,25 @@ class Service:
             self.desired_tasks = desired_tasks
             self.task_diff = self.desired_tasks - self.task_count
             logger.info(
-                "[Cluster: {}, Service: {}] Event satisfied:\n"
-                " => Metric name:   {}\n"
-                " => Current: {}\n"
-                " => Min:     {}\n"
-                " => Max:     {}\n"
-                " => Action:  {}"
-                .format(
-                    self.cluster_name,
-                    self.service_name,
-                    metric_name,
-                    metric,
-                    event["min"],
-                    event["max"],
-                    event["action"],
-                )
+                "[Cluster: %s, Service: %s] Event satisfied:\n"
+                " => Metric name:   %s\n"
+                " => Current: %s\n"
+                " => Min:     %s\n"
+                " => Max:     %s\n"
+                " => Action:  %s",
+                self.cluster_name,
+                self.service_name,
+                metric_name,
+                metric,
+                event["min"],
+                event["max"],
+                event["action"],
             )
             return True
 
         return False
 
-    def scale(self, is_test_run=False):
+    def scale(self, is_test_run: bool = False) -> None:
         """
         Scale service.
         """
@@ -159,7 +180,7 @@ class Service:
                 self.task_diff != 0 and \
                 self.service_name is not None:
             logger.info(
-                "[Cluster: {}, Service: {}] Setting desired count to {}"
+                "[Cluster: {:s}, Service: {:s}] Setting desired count to {:d}"
                 .format(
                     self.cluster_name,
                     self.service_name,
@@ -174,8 +195,8 @@ class Service:
                 )
 
 
-def get_services(cluster_name, cluster_def):
-    out = {}
+def get_services(cluster_name: str, cluster_def: dict) -> dict:
+    out: dict = {}
     service_names = cluster_def["services"].keys()
     if not service_names:
         return out
@@ -192,9 +213,9 @@ def get_services(cluster_name, cluster_def):
     return out
 
 
-def gather_services(cluster_name, cluster_def):
+def gather_services(cluster_name: str, cluster_def: dict) -> List[Service]:
     logger.info(
-        "[Cluster: {}] Gathering services"
+        "[Cluster: {:s}] Gathering services"
         .format(cluster_name)
     )
 
@@ -202,12 +223,12 @@ def gather_services(cluster_name, cluster_def):
     services = []
     for service_name in services_data:
         logger.info(
-            "[Cluster: {}] Found service {}"
+            "[Cluster: {:s}] Found service {:s}"
             .format(cluster_name, service_name)
         )
         if not cluster_def["services"][service_name]["enabled"]:
             logger.info(
-                "[Cluster: {}] Skipping service {} since not enabled"
+                "[Cluster: {:s}] Skipping service {:s} since not enabled"
                 .format(cluster_name, service_name)
             )
             continue

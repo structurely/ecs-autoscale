@@ -106,6 +106,9 @@ lambda/packages
 lambda/clusters/*.yml
 pull_cluster_defs.sh
 push_cluster_defs.sh
+access.txt
 
 # testing
 test.sh
+
+.pytest_cache/

@@ -1,9 +1,7 @@
-awscli
-boto3
-PyYAML
-virtualenv
-virtualenvwrapper
+awscli==1.15.30
+boto3==1.7.30
+PyYAML==3.12
+requests==2.18.4
 pytest
-flake8
-pep8-naming
-requests
+mypy
+pylint

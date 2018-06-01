@@ -1,14 +1,18 @@
+"""Metrics from CloudWatch."""
+
 from datetime import datetime, timedelta
 import logging
+from typing import List
 
 from ecsautoscale import cdw_client
+from ecsautoscale.exceptions import CloudWatchError
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def _format_dimensions(dimensions):
+def _format_dimensions(dimensions: List[dict]) -> List[dict]:
     out = []
     for item in dimensions:
         out.append({
@@ -18,20 +22,36 @@ def _format_dimensions(dimensions):
     return out
 
 
-def get_data(metric_name="MemoryUtilization", dimensions=None,
-             statistics=None, namespace="AWS/ECS", period=300):
+def get_data(metric_name: str = "MemoryUtilization",
+             dimensions: List[dict] = None,
+             statistics: List[dict] = None,
+             namespace: str = "AWS/ECS",
+             period: int = 300) -> dict:
     """
     Retreive metrics from AWS CloudWatch.
 
-    Args:
-        metric_name (str): the name of the metric.
-        dimensions (list of str): AWS metric dimension names.
-        statistics (list of str): AWS metric statistic names.
-        namespace (str): AWS metric namespace name.
-        period (int): AWS metric period.
+    Parameters
+    ----------
+    metric_name : str
+        The name of the metric.
 
-    Returns:
-        dict: the desired metrics.
+    dimensions : List[dict]
+        AWS metric dimension names.
+
+    statistics : List[dict]
+        AWS metric statistic names.
+
+    namespace : str
+        AWS metric namespace name.
+
+    period : int
+        AWS metric period.
+
+    Returns
+    -------
+    dict
+        The desired metrics.
+
     """
     statistics = statistics or []
     dimensions = dimensions or []
@@ -52,25 +72,17 @@ def get_data(metric_name="MemoryUtilization", dimensions=None,
     )
     datapoints = res["Datapoints"]
     if not datapoints:
-        logger.error(
-            "Error retreiving CloudWatch statistics, no datapoints found:\n"
-            " => Namespace:  {}\n"
-            " => MetricName: {}\n"
-            " => Dimensions: {}\n"
-            " => Period:     {}\n"
-            " => Statistics: {}"
-            .format(
-                namespace, metric_name, dimensions_, period, statistics_,
-            )
-        )
-    else:
-        log_messages = ["Retreived the following statistics from CloudWatch:"]
-        for x in statistics:
-            key = x["alias"]
-            val = datapoints[0].get(x["name"])
-            out[key] = val
-            log_messages.append(" => {}: {}".format(key, val))
-        if out:
-            logger.debug("\n".join(log_messages))
+        raise CloudWatchError(
+            namespace, metric_name, dimensions_, period, statistics_)
+
+    log_messages = ["Retreived the following statistics from CloudWatch:"]
+    for stat in statistics:
+        key = stat["alias"]
+        val = datapoints[0].get(stat["name"])
+        out[key] = val
+        log_messages.append(" => {}: {}".format(key, val))
+
+    if out:
+        logger.debug("\n".join(log_messages))
 
     return out

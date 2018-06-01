@@ -1,39 +1,54 @@
-#!/usr/bin/env python
+# pylint: disable=wrong-import-position
+"""Lambda function for autoscaling ECS clusters and services."""
 
-from copy import deepcopy
 import inspect
 import logging
 import os
+import re
 import sys
+from typing import List
 
-base_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-sys.path.append(os.path.join(base_path, "./packages/"))
+BASE_PATH = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+sys.path.append(os.path.join(BASE_PATH, "./packages/"))
 
-from ecsautoscale import asg_client, ecs_client, LOG_LEVEL  # noqa: E402
-from ecsautoscale.cluster_definitions import load_cluster   # noqa: E402
-from ecsautoscale.ec2_instances import scale_ec2_instances  # noqa: E402
-from ecsautoscale.services import gather_services, Service  # noqa: E402
+import yaml
+
+from ecsautoscale import asg_client, ecs_client, LOG_LEVEL
+from ecsautoscale.instances import scale_ec2_instances
+from ecsautoscale.services import gather_services, Service
 
 
 logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
 
-# Load cluster autoscaling definitions.
-base_cluster_defs = {}
-clusters_defs_path = os.path.join(base_path, "clusters/")
-for fname in os.listdir(clusters_defs_path):
-    if not fname.endswith(".yml"):
-        continue
-    path = os.path.join(clusters_defs_path, fname)
-    cluster_name = os.path.splitext(fname)[0]
-    data = load_cluster(path)
-    base_cluster_defs[cluster_name] = data
+
+def load_yaml(path: str) -> dict:
+    """Load a YAML file into a dict object."""
+    with open(path, "r") as yamlfile:
+        raw = yamlfile.read()
+        # Replace env variables in the yaml defs.
+        for match, env_var in re.findall(r"(%\(([A-Za-z_]+)\))", raw):
+            raw = raw.replace(match, os.environ[env_var])
+    data = yaml.load(raw)
+    return data
 
 
-def clusters():
-    """
-    Returns an iterable list of cluster names.
-    """
+def load_cluster_defs() -> dict:
+    """Load YAML cluster definitions."""
+    cluster_defs = {}
+    clusters_defs_path = os.path.join(BASE_PATH, "clusters/")
+    for fname in os.listdir(clusters_defs_path):
+        if not fname.endswith(".yml"):
+            continue
+        path = os.path.join(clusters_defs_path, fname)
+        cluster_name = os.path.splitext(fname)[0]
+        data = load_yaml(path)
+        cluster_defs[cluster_name] = data
+    return cluster_defs
+
+
+def clusters() -> List[str]:
+    """Return an iterable list of cluster names."""
     response = ecs_client.list_clusters()
     if not response['clusterArns']:
         logger.warning('No ECS cluster found')
@@ -43,12 +58,13 @@ def clusters():
 
 def lambda_handler(event, context):
     """
-    Main function which is imported and invoked by AWS Lambda.
+    Pull metrics and check to see which clusters and services should scale.
 
-    The 'event' and 'context' are given by AWS, but we currently don't do
-    anything with them.
+    This is the function called by AWS Lambda. The 'event' and 'context' are
+    given by AWS, but we currently don't do anything with them.
     """
-    logger.info("Got event {}".format(event))
+    # pylint: disable=unused-argument,broad-except
+    logger.info(event)
 
     is_test_run = event == "TEST_RUN"
     if is_test_run:
@@ -57,7 +73,7 @@ def lambda_handler(event, context):
         )
 
     # Initialize data.
-    cluster_defs = deepcopy(base_cluster_defs)
+    cluster_defs = load_cluster_defs()
     cluster_list = clusters()
     asg_data = asg_client.describe_auto_scaling_groups()
 
@@ -68,7 +84,7 @@ def lambda_handler(event, context):
             # Skip cluster if not enabled.
             if not cluster_def["enabled"]:
                 logger.warning(
-                    "[Cluster: {}] Skipping since not enabled"
+                    "[Cluster: {:s}] Skipping since not enabled"
                     .format(cluster_name)
                 )
                 continue
@@ -78,16 +94,16 @@ def lambda_handler(event, context):
             services = gather_services(cluster_name, cluster_def)
             n_services = len(services)
             logger.info(
-                "[Cluster: {}] Found {:d} services that need to scale"
+                "[Cluster: {:s}] Found {:d} services that need to scale"
                 .format(cluster_name, n_services)
             )
 
             # (2 / 4) Add a fake task to account for CPU buffer and mem buffer.
             if cluster_def["cpu_buffer"] > 0 or cluster_def["mem_buffer"] > 0:
                 logger.info(
-                    "[Cluster: {}] Buffer size requested:\n"
-                    " => CPU buffer:    {}\n"
-                    " => Memory buffer: {} MB"
+                    "[Cluster: {:s}] Buffer size requested:\n"
+                    " => CPU buffer:    {:d}\n"
+                    " => Memory buffer: {:d} MB"
                     .format(cluster_name, cluster_def["cpu_buffer"],
                             cluster_def["mem_buffer"])
                 )
@@ -114,7 +130,7 @@ def lambda_handler(event, context):
             if res == -1:
                 if n_services > 0:
                     logger.warning(
-                        "[Cluster: {}] Cannot scale services since max"
+                        "[Cluster: {:s}] Cannot scale services since max"
                         "capacity is 0"
                         .format(cluster_name)
                     )
@@ -130,13 +146,18 @@ def lambda_handler(event, context):
             logger.exception(ex)
 
 
-if __name__ == "__main__":
+def run_test():
+    """Run a test event locally."""
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", action="store_true")
     opts = parser.parse_args()
     if opts.test:
-        event = "TEST_RUN"
+        test_event = "TEST_RUN"
     else:
-        event = 1
-    lambda_handler(event, 2)
+        test_event = 1
+    lambda_handler(test_event, 2)
+
+
+if __name__ == "__main__":
+    run_test()
