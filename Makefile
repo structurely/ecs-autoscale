@@ -1,5 +1,6 @@
 test = test/
 repo = epwalsh/ecs-autoscale
+cmd = ls
 
 .PHONY : docker-build
 docker-build :
@@ -7,7 +8,7 @@ docker-build :
 
 .PHONY : docker-run
 docker-run :
-	docker run --env-file=./access.txt --rm $(repo)
+	docker run --env-file=./access.txt --rm $(repo) $(cmd)
 
 .PHONY : build
 build :
@@ -29,16 +30,16 @@ typecheck :
 
 .PHONY : lint
 lint :
-	@echo "\nLint (pylint):\n"
+	@echo "Lint (pylint):"
 	-@pylint --rcfile=./.pylintrc -f colorized lambda
 
 .PHONY : unit-test
 unit-test :
-	@echo "Unit tests (pytest):\n"
+	@echo "Unit tests (pytest):"
 	@export PYTHONPATH=./lambda && pytest --color=yes $(test)
 
 .PHONY : test
-test : clean typecheck lint unit-test
+test : typecheck lint unit-test
 
 .PHONY : clean
 clean :

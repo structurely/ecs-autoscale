@@ -20,12 +20,20 @@ RUN pip install -r requirements.txt
 COPY ./bootstrap.sh bootstrap.sh
 COPY ./policy.json policy.json
 COPY ./role.json role.json
+COPY ./Makefile Makefile
 RUN chmod +x bootstrap.sh
 
 # Copy tests.
+COPY ./.pylintrc .pylintrc
 COPY ./test test/
 
 # Copy application files.
 COPY ./lambda lambda/
+
+# Create sym link to site-packages dir.
+RUN cd lambda && \
+    ln -s \
+        `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` \
+        packages
 
 CMD ls

@@ -154,21 +154,19 @@ class Service:
             self.desired_tasks = desired_tasks
             self.task_diff = self.desired_tasks - self.task_count
             logger.info(
-                "[Cluster: {:s}, Service: {:s}] Event satisfied:\n"
-                " => Metric name:   {:s}\n"
-                " => Current: {:d}\n"
-                " => Min:     {:d}\n"
-                " => Max:     {:d}\n"
-                " => Action:  {:d}"
-                .format(
-                    self.cluster_name,
-                    self.service_name,
-                    metric_name,
-                    metric,
-                    event["min"],
-                    event["max"],
-                    event["action"],
-                )
+                "[Cluster: %s, Service: %s] Event satisfied:\n"
+                " => Metric name:   %s\n"
+                " => Current: %s\n"
+                " => Min:     %s\n"
+                " => Max:     %s\n"
+                " => Action:  %s",
+                self.cluster_name,
+                self.service_name,
+                metric_name,
+                metric,
+                event["min"],
+                event["max"],
+                event["action"],
             )
             return True
 
