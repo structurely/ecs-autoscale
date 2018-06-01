@@ -2,6 +2,7 @@ test = test/
 repo = epwalsh/ecs-autoscale
 cmd = ls
 
+
 .PHONY : docker-build
 docker-build :
 	docker build -t $(repo) .
@@ -12,7 +13,9 @@ docker-run :
 
 .PHONY : build
 build :
-	@cd lambda && zip -r ../deployment.zip *
+	@echo "Creating deployment package"
+	@cd lambda && zip -r ../deployment.zip * &> /dev/null
+	@ls -lh | grep *.zip
 
 .PHONY : push
 push :
@@ -21,8 +24,7 @@ push :
 			--zip-file fileb://./deployment.zip
 
 .PHONY : deploy
-deploy : clean build push
-
+deploy : build push
 
 .PHONY : typecheck
 typecheck :
@@ -40,6 +42,10 @@ unit-test :
 
 .PHONY : test
 test : typecheck lint unit-test
+
+.PHONY : test-run
+test-run :
+	@cd lambda && python lambda_function.py --test
 
 .PHONY : clean
 clean :

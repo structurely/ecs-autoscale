@@ -2,6 +2,12 @@ This project is in its very early stages and we encourage developer contribution
 
 Before submitting a PR, please do this checklist first:
 
-- Run `make test` and fix any errors.
+- Run `make test` and fix any errors. You can also run all of the tests through the Docker container with:
+
+ ```
+ docker run --env-file=./access.txt --rm epwalsh/ecs-autoscale make test
+ ```
+
 - When adding new functionality, also add tests for this functionality.
-- Include references to any other relevant materials in your PR, such as AWS documentation.
+- Include a detailed description of the changes you made and the rational behind
+them in your PR.

@@ -14,6 +14,7 @@ arbitrary metrics from sources not limited to CloudWatch.
 
 - [Requirements](https://github.com/structurely/ecs-autoscale#requirements)
 - [Quick start](https://github.com/structurely/ecs-autoscale#quick-start)
+- [Deploying updates](https://github.com/structurely/ecs-autoscale#deploying-updates)
 - [Scaling details](https://github.com/structurely/ecs-autoscale#scaling-details)
 - [Metrics](https://github.com/structurely/ecs-autoscale#metrics)
   - [Sources](https://github.com/structurely/ecs-autoscale#sources)
@@ -23,8 +24,7 @@ arbitrary metrics from sources not limited to CloudWatch.
 
 ## Requirements
 
-Make sure you have Python 3.5 or 3.6 and have installed the requirements
-listed in `requirements.txt` (`pip3 install -r requirements.txt`). 
+The only requirement is an AWS account with programmatic access and Docker.
 
 ## Quick start
 
@@ -45,7 +45,7 @@ we will need to make an HTTP GET request to the api of the queue.
 
 **Step 1: Define the cluster scaling requirements**
 
-We create a YAML file `./lambda/clusters/my_cluster.yml`.
+Create a YAML file `./lambda/clusters/my_cluster.yml`.
 
 > NOTE: The name of the YAML file sans extension must exactly match the name of the cluster on ECS.
 
@@ -143,33 +143,58 @@ we have the environment variables `USERNAME` and `PASSWORD`. Then the line above
 with the url for RabbitMQ would become `url: https://%(USERNAME):%(PASSWORD)@my_rabbitmq_host.com/api/queues/celery`.
 
 
-**Step 2: Test the function locally**
+**Step 2: Build the docker image**
 
-To test the function locally,
+The docker image is used to test the Lambda function locally, as well as to set 
+up the Lambda environment on AWS and upload deployment packages.
 
-```bash
-cd ./lambda/ && python3 lambda_function.py --test
+You can build the image with
+
+```
+docker build -t epwalsh/ecs-autoscale .
 ```
 
-> NOTE: The `--test` switch ensures that no actual scaling events will occur,
-it's just a simulation.
+**Step 3: Test the function locally**
 
+We can use the Docker image created in step 2 to test the Lamda function.
+In order to start the container, create a file called `access.txt`
+that looks like this:
 
-**Step 3: Setup and deployment**
+```
+AWS_DEFAULT_REGION=***
+AWS_ACCESS_KEY_ID=***
+AWS_SECRET_ACCESS_KEY=***
+```
 
-Run the script `./bootstrap.sh`. This will
+If your cluster definitions requires other environment variabes, you can also
+put them in there.
 
-- Create a Python 3 virtualenv called `ecs-autoscale`.
-- Install the requirements to that virtualenv.
-- Create a symbolic link `lambda/packages` to the site-packages directory of that virtualenv,
-  so that all of the dependencies can be bundled together in the deployment package.
+Then run:
+
+```bash
+docker run --env-file=./access.txt --rm epwalsh/ecs-autoscale make test-run
+```
+
+**Step 4: Setup and deployment**
+
+We can now create the Lambda function on AWS.
+
+All you have to do is run the Docker container again with the `bootstrap.sh`
+script as the command:
+
+```bash
+docker run --env-file=./access.txt --rm epwalsh/ecs-autoscale ./bootstrap.sh
+```
+
+This will:
+
 - Create an IAM policy that gives access to the resources the lambda function will need.
 - Create a role for the Lambda function to use, and attach the policy to that role.
 - Build a deployment package.
 - Create a Lambda function on AWS with the role attached and upload the deployment package.
 
 
-**Step 4: Create a trigger to execute your function**
+**Step 5: Create a trigger to execute your function**
 
 In this example we will create a simple CloudWatch rule that triggers our Lambda function to run
 every 5 minutes.
@@ -191,6 +216,15 @@ Next click "Configure details", give your rule a name, and then click "Create ru
 
 You're all set! After 5 minutes your function should run.
 
+
+## Deploying updates
+
+If you update your cluster definitions, you can easily redeploy **ecs-autoscale**
+by running:
+
+```bash
+docker run --env-file=./access.txt --rm epwalsh/ecs-autoscale make deploy
+```
 
 ## Scaling details
 

@@ -4,7 +4,9 @@
 #
 #  1. Creates an IAM policy with the right permissions for the Lambda function.
 #  2. Creates an IAM role for the Lambda function and attaches the policy.
-#  3. Creates the Lambda function with the role.
+#  3. Build a deployment package.
+#  4. Create a Lambda function on AWS with the role attached and upload the
+#     deployment package.
 #
 # ==============================================================================
 
@@ -38,12 +40,17 @@ echo "Waiting for role to be registered"
 
 sleep 5
 
+echo "Creating deployment package"
+
+cd lambda && zip -r ../deployment.zip * && cd -
+
 echo "Creating Lambda function ecs-autoscale"
 
 aws lambda create-function \
     --function-name ecs-autoscale \
     --zip-file fileb://deployment.zip \
     --role $role_arn \
+    --handler "lambda_function.lambda_handler" \
     --runtime "python3.6" \
     --timeout 10 \
     --memory-size 128

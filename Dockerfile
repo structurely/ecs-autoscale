@@ -6,6 +6,7 @@ RUN apk add --update \
         g++ \
         libc-dev \
         linux-headers \
+        zip \
         make && \
     rm -rf /var/cache/apk/*
 
@@ -36,4 +37,4 @@ RUN cd lambda && \
         `python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"` \
         packages
 
-CMD ls
+CMD ["ls", "-a"]
