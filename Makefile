@@ -1,4 +1,13 @@
 test = test/
+repo = epwalsh/ecs-autoscale
+
+.PHONY : docker-build
+docker-build :
+	docker build -t $(repo) .
+
+.PHONY : docker-run
+docker-run :
+	docker run --env-file=./access.txt --rm $(repo)
 
 .PHONY : build
 build :

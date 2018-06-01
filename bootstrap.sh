@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ==============================================================================
 # This script bootstraps the setup process for the Lambda function:
 #
