@@ -14,7 +14,6 @@ sys.path.append(os.path.join(BASE_PATH, "./packages/"))
 import yaml
 
 from ecsautoscale import asg_client, ecs_client, LOG_LEVEL
-from ecsautoscale.cluster_definitions import load_cluster
 from ecsautoscale.instances import scale_ec2_instances
 from ecsautoscale.services import gather_services, Service
 
@@ -43,7 +42,7 @@ def load_cluster_defs() -> dict:
             continue
         path = os.path.join(clusters_defs_path, fname)
         cluster_name = os.path.splitext(fname)[0]
-        data = load_cluster(path)
+        data = load_yaml(path)
         cluster_defs[cluster_name] = data
     return cluster_defs
 

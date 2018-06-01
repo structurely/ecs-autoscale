@@ -5,6 +5,7 @@ import logging
 from typing import List
 
 from ecsautoscale import cdw_client
+from ecsautoscale.exceptions import CloudWatchError
 
 
 logger = logging.getLogger()
@@ -71,22 +72,17 @@ def get_data(metric_name: str = "MemoryUtilization",
     )
     datapoints = res["Datapoints"]
     if not datapoints:
-        logger.error(
-            "Error retreiving CloudWatch statistics, no datapoints found:\n"
-            " => Namespace:  %s\n"
-            " => MetricName: %s\n"
-            " => Dimensions: %s\n"
-            " => Period:     %s\n"
-            " => Statistics: %s",
+        raise CloudWatchError(
             namespace, metric_name, dimensions_, period, statistics_)
-    else:
-        log_messages = ["Retreived the following statistics from CloudWatch:"]
-        for stat in statistics:
-            key = stat["alias"]
-            val = datapoints[0].get(stat["name"])
-            out[key] = val
-            log_messages.append(" => {}: {}".format(key, val))
-        if out:
-            logger.debug("\n".join(log_messages))
+
+    log_messages = ["Retreived the following statistics from CloudWatch:"]
+    for stat in statistics:
+        key = stat["alias"]
+        val = datapoints[0].get(stat["name"])
+        out[key] = val
+        log_messages.append(" => {}: {}".format(key, val))
+
+    if out:
+        logger.debug("\n".join(log_messages))
 
     return out
