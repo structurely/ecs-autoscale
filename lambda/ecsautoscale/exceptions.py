@@ -3,7 +3,6 @@
 
 class Error(Exception):
     """Base error."""
-    pass
 
 
 class ClusterARNError(Error):

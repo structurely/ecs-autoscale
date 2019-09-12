@@ -28,12 +28,12 @@ deploy : build push
 
 .PHONY : typecheck
 typecheck :
-	-@mypy lambda --ignore-missing-imports
+	@mypy lambda --ignore-missing-imports
 
 .PHONY : lint
 lint :
 	@echo "Lint (pylint):"
-	-@pylint --rcfile=./.pylintrc -f colorized lambda
+	@pylint --rcfile=./.pylintrc -f colorized lambda
 
 .PHONY : unit-test
 unit-test :
