@@ -13,7 +13,6 @@ from . import ecs_client, LOG_LEVEL
 logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
 
-
 class Service:
     """
     An object for scaling arbitrary services.
@@ -194,22 +193,27 @@ class Service:
                     desiredCount=self.desired_tasks,
                 )
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
 
 def get_services(cluster_name: str, cluster_def: dict) -> dict:
     out: dict = {}
     service_names = cluster_def["services"].keys()
     if not service_names:
         return out
-    res = ecs_client.describe_services(
-        cluster=cluster_name,
-        services=list(cluster_def["services"].keys())
-    )
-    for item in res["services"]:
-        name = item["serviceName"]
-        out[name] = {
-            "task_count": item["runningCount"],
-            "task_name": item["taskDefinition"],
-        }
+    for service_names_chunk in chunks(list(service_names), 10):
+        res = ecs_client.describe_services(
+            cluster=cluster_name,
+            services=service_names_chunk
+        )
+        for item in res["services"]:
+            name = item["serviceName"]
+            out[name] = {
+                "task_count": item["runningCount"],
+                "task_name": item["taskDefinition"],
+            }
     return out
 
 
