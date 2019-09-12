@@ -1,5 +1,5 @@
-awscli==1.15.30
-boto3==1.7.30
+awscli==1.15.85
+boto3==1.7.80
 PyYAML==3.12
 requests==2.18.4
 pytest

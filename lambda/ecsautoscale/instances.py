@@ -68,8 +68,7 @@ def retrieve_cluster_data(cluster_arn: str, cluster_name: str) -> dict:
             containerInstances=arns,
         )
     else:
-        logger.warning(
-            f"[Cluster: {cluster_name}] No active instances in cluster")
+        logger.warning("[Cluster: %s] No active instances in cluster", cluster_name)
         active_container_described = {"containerInstances": []}
 
     draining_container_instances = ecs_client.list_container_instances(
@@ -126,8 +125,7 @@ def terminate_instance(cluster_name: str,
                        ec2_instance_id: str,
                        is_test_run: bool = False) -> None:
     """Completely terminate an instance."""
-    logger.info(
-        f"[Cluster: {cluster_name}] Terminating instance {ec2_instance_id}")
+    logger.info("[Cluster: %s] Terminating instance %s", cluster_name, ec2_instance_id)
     if not is_test_run:
         asg_client.terminate_instance_in_auto_scaling_group(
             InstanceId=ec2_instance_id,
