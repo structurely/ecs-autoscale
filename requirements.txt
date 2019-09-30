@@ -3,5 +3,5 @@ boto3==1.7.80
 PyYAML>=4.2b1
 requests>=2.20.0
 pytest
-mypy
-pylint
+mypy==0.701
+pylint==2.3.1
