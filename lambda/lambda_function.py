@@ -76,6 +76,10 @@ def lambda_handler(event, context):
     cluster_defs = load_cluster_defs()
     cluster_list = clusters()
     asg_data = asg_client.describe_auto_scaling_groups()
+    if 'NextToken' in asg_data:
+        asg_data['AutoScalingGroups'] += asg_client.describe_auto_scaling_groups(
+            NextToken=asg_data['NextToken']
+        )['AutoScalingGroups']
 
     for cluster_name in cluster_defs:
         try:
