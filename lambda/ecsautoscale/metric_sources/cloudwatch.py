@@ -26,7 +26,8 @@ def get_data(metric_name: str = "MemoryUtilization",
              dimensions: List[dict] = None,
              statistics: List[dict] = None,
              namespace: str = "AWS/ECS",
-             period: int = 300) -> dict:
+             period: int = 300,
+             defaultValue: int = None) -> dict:
     """
     Retreive metrics from AWS CloudWatch.
 
@@ -72,8 +73,11 @@ def get_data(metric_name: str = "MemoryUtilization",
     )
     datapoints = res["Datapoints"]
     if not datapoints:
-        raise CloudWatchError(
-            namespace, metric_name, dimensions_, period, statistics_)
+        if defaultValue:
+            datapoints.append({statistics_[0] : defaultValue})
+        else:
+            raise CloudWatchError(
+                namespace, metric_name, dimensions_, period, statistics_)
 
     log_messages = ["Retreived the following statistics from CloudWatch:"]
     for stat in statistics:

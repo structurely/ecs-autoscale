@@ -309,6 +309,23 @@ metric_sources:
           alias: cpu_usage
 ```
 
+Cloudwatch doesn't return values for some resource metrics if the resource was not used e.g. TargetResponseTime for AWS/ApplicationELB.
+You can add `default: <value>` so that the value is replaced with `<value>`.
+```
+metric_sources:
+  cloudwatch:
+    - namespace: AWS/ApplicationELB
+      metric_name: TargetResponseTime
+      dimensions:
+        - name: TargetGroup
+          value: targetgroup/ac-re-Targe-13P06UAEX2W9Y/f9002d01ab9053e0
+      period: 60
+      statistics:
+        - name: Average
+          alias: alb_response_time
+      default: 0
+```
+
 One thing to watch out for is how you define the `statistics` field above.
 The `name` part has to match exactly with a statistic used by CloudWatch,
 and the `alias` part is an arbitrary name you use to reference this metric when
